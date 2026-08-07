@@ -351,6 +351,8 @@ async function extractPdfPageLines(pdf, pageNum){
   const content = await page.getTextContent();
   const rows = {};
   content.items.forEach(it=>{
+    if(it.str==="") return; // itens de texto vazio (sem largura própria) atrapalham a
+    // detecção de duplicata abaixo, já que "quebram" a adjacência entre as 2 cópias reais.
     const y = Math.round(it.transform[5]);
     if(!rows[y]) rows[y] = [];
     rows[y].push({x:it.transform[4], w:it.width||0, text:it.str});
@@ -358,8 +360,16 @@ async function extractPdfPageLines(pdf, pageNum){
   const ys = Object.keys(rows).map(Number).sort((a,b)=>b-a);
   return ys.map(y=>{
     const items = rows[y].sort((a,b)=>a.x-b.x);
-    let line = "", prevEnd = null;
+    // Alguns PDFs (ex. Casarão) simulam negrito desenhando o mesmo texto duas vezes com um
+    // deslocamento horizontal mínimo (não é conteúdo repetido de verdade) — descarta a 2ª cópia.
+    const deduped = [];
     items.forEach(it=>{
+      const prev = deduped[deduped.length-1];
+      if(prev && prev.text===it.text && Math.abs(it.x-prev.x) < 2){ return; }
+      deduped.push(it);
+    });
+    let line = "", prevEnd = null;
+    deduped.forEach(it=>{
       if(prevEnd!=null && (it.x - prevEnd) > 1.2) line += " ";
       line += it.text;
       prevEnd = it.x + it.w;
@@ -675,6 +685,28 @@ function resolveInquilino({cpf, contrato, nome, imovelHint}){
   return null;
 }
 
+// Usado pros "Lançamentos Avulsos" da JK (condomínio/chamada extra cobrados do imóvel, sem
+// inquilino associado na linha) — casa pelo nº do apartamento ("Ap301"/"Apto 403"/"Ap.302")
+// + a rua em comum, já que o nome do prédio ("Murano 403") sempre termina com esse número
+// no nosso cadastro. Não casa só pela rua sozinha (várias ruas têm vários imóveis nossos).
+function resolveImovelByEndereco(enderecoTexto){
+  if(!enderecoTexto) return null;
+  const norm = normalizeText(enderecoTexto);
+  const aptMatch = enderecoTexto.match(/\bAp(?:to)?\.?\s*(\d{2,4})\b/i);
+  if(!aptMatch) return null;
+  const apt = aptMatch[1];
+  const candidatos = imoveisDB.filter(im => im.imovel && im.imovel.trim().match(new RegExp(apt+"$")));
+  if(candidatos.length===1) return candidatos[0];
+  if(candidatos.length>1){
+    // O texto do avulso às vezes omite "Rua"/"Av." (ex. "Andradas 156" em vez de "Rua
+    // Andradas") — compara só o nome da rua, sem esse prefixo genérico.
+    const coreRua = s => normalizeText(s).replace(/^(RUA|AV|AVENIDA|ALAMEDA|TRAVESSA)\s+/,"");
+    const porRua = candidatos.filter(im => im.endereco && norm.includes(coreRua(im.endereco)));
+    if(porRua.length===1) return porRua[0];
+  }
+  return null;
+}
+
 /* =========================================================================
    CLASSIFICAÇÃO DE ITEM → conta / coluna da tela de Lançamentos
    ========================================================================= */
@@ -755,46 +787,86 @@ function parseUnicredCheckingBlocks(lines){
    ========================================================================= */
 function parseRepasseJK(lines){
   const repasses = []; // {ref, nome, itens:[{desc,valor}], flagAtraso, semEmissao}
-  let cur = null, section = "contratos";
-  const CONTRATO_RE = /^Contrato:\s*(\S+)\s+Im[oó]vel:\s*(\S+)\s+Descri[cç][aã]o/i;
-  const ITEM_COD_RE = /(\d{3})\s*-\s*(.+?)\s+(-?[\d.]+,\d{2})\s*$/;
+  // O pdf.js quebra "Contrato: X Imóvel: Y" e "Descrição Crédito Débito Líquido" em linhas
+  // separadas (às vezes com a 2ª ANTES da 1ª) e às vezes joga o valor de um item pra linha
+  // seguinte (separado do "código - descrição"). Por isso não dá pra confiar na fronteira de
+  // linha do pdf.js: junta cada bloco de contrato inteiro num só texto e casa os itens nesse
+  // texto (a ordem visual código→descrição→valor se mantém, só a quebra de linha muda).
+  const CONTRATO_RE = /^Contrato:\s*(\S+)\s+Im[oó]vel:\s*(\S+)/i;
+  // Restrito a códigos de item conhecidos (não "\d{3}" genérico) — sem isso, números de
+  // endereço tipo "Tangará 477 - Ap 301" casam como se fossem um item novo e "engolem" o
+  // item de verdade que vem depois no mesmo texto.
+  const ITEM_COD_RE = /(001|007|009|013|027|060)\s*-\s*(.+?)\s+(-?[\d.]+,\d{2})/g;
   const TAXA_ADM_RE = /TAXA DE ADMINISTRA[ÇC][ÃA]O\s+(-?[\d.]+,\d{2})/i;
+  const SUBTOTAL_RE = /SUB-TOTAL\s+(-?[\d.,]+)(?:\s+(-?[\d.,]+))?(?:\s+(-?[\d.,]+))?/;
+  const INQUILINO_RE = /INQUILINO:\s*(.+?)(?=\s+\d{3}\s*-|\s+TAXA DE ADMINISTRA|\s+T[ÉE]RMINO DO CONTRATO|\s+PAGO EM|\s+CONTRATO EM ATRASO|\s+SUB-TOTAL|$)/i;
   const AVULSO_IM_RE = /^(\d{4})\s*-\s*(.+)$/;
   // Códigos avulsos conhecidos (Condomínio, PGTO chamada extra, REC. MULTA) — restrito a uma
   // lista fechada pra não confundir com números de endereço tipo "156 - Ap301".
   const AVULSO_COD_RE = /(100|976|994)\s*-\s*([A-Za-zÀ-ÿ][^0-9]*)/;
   const AVULSO_VAL_RE = /(-?[\d.]+,\d{2})/;
-  const avulsoImoveis = [], avulsoCodigos = [], avulsoValores = [];
+  const avulsoImoveis = [], avulsoEnderecos = [], avulsoCodigos = [], avulsoValores = [];
+
+  // 1ª passada: separa em blocos por contrato (cada bloco = texto entre um "Contrato: X
+  // Imóvel: Y" e o próximo marcador de mesmo tipo, ou "Lançamentos Avulsos"/"Resumo").
+  let section = "contratos";
+  const blocks = []; // {contrato, imovelJK, linhas:[]}
+  let curBlock = null;
   lines.forEach(line=>{
-    if(/^Lan[çc]amentos Avulsos$/i.test(line)){ section = "avulsos"; return; }
-    if(/^Resumo$/i.test(line)){ section = "fim"; return; }
+    if(/^Lan[çc]amentos Avulsos$/i.test(line)){ section = "avulsos"; curBlock = null; return; }
+    if(/^Resumo$/i.test(line)){ section = "fim"; curBlock = null; return; }
     if(section === "contratos"){
       const cm = line.match(CONTRATO_RE);
-      if(cm){ cur = {ref:"jk-contrato-"+cm[1], contrato:cm[1], imovelJK:cm[2], nome:"", itens:[]}; repasses.push(cur); return; }
-      if(!cur) return;
-      const im = line.match(/INQUILINO:\s*(.+?)(?=\s+\d{3}\s*-|\s+TAXA DE ADMINISTRA|$)/i);
-      if(im) cur.nome = im[1].trim();
-      if(/CONTRATO EM ATRASO/i.test(line)) cur.emAtraso = true;
-      if(/SEM EMISS[ÃA]O/i.test(line)) cur.semEmissao = true;
-      const tm = line.match(TAXA_ADM_RE);
-      if(tm){ cur.itens.push({desc:"TAXA DE ADMINISTRAÇÃO", valor:parseBRL(tm[1])}); }
-      const itm = line.match(ITEM_COD_RE);
-      if(itm){ cur.itens.push({desc:itm[2].trim(), valor:parseBRL(itm[3])}); }
+      if(cm){ curBlock = {contrato:cm[1], imovelJK:cm[2], linhas:[]}; blocks.push(curBlock); return; }
+      if(curBlock) curBlock.linhas.push(line);
     } else if(section === "avulsos"){
       // Layout inconsistente entre linhas (código/descrição e valor às vezes ficam em
       // linhas separadas, em ordens diferentes) — junta os 3 tipos de token na ordem em
       // que aparecem no bloco e casa por posição (sempre 1 imóvel : 1 código : 1 valor).
       const aim = line.match(AVULSO_IM_RE);
-      if(aim) avulsoImoveis.push(aim[1]);
+      if(aim){ avulsoImoveis.push(aim[1]); avulsoEnderecos.push(aim[2]); }
       const acm = line.match(AVULSO_COD_RE);
       if(acm) avulsoCodigos.push(acm[2].trim());
       const avm = line.match(AVULSO_VAL_RE);
       if(avm) avulsoValores.push(parseBRL(avm[1]));
     }
   });
+
+  // 2ª passada: cada bloco vira um repasse, casando itens/inquilino no texto inteiro do
+  // bloco (blob) em vez de linha a linha.
+  blocks.forEach(b=>{
+    const blob = b.linhas.join(" ").replace(/\s+/g," ");
+    const cur = {ref:"jk-contrato-"+b.contrato, contrato:b.contrato, imovelJK:b.imovelJK, nome:"", itens:[]};
+    if(/CONTRATO EM ATRASO/i.test(blob)) cur.emAtraso = true;
+    if(/SEM EMISS[ÃA]O/i.test(blob)) cur.semEmissao = true;
+    const im = blob.match(INQUILINO_RE);
+    if(im) cur.nome = im[1].trim();
+    const tm = blob.match(TAXA_ADM_RE);
+    if(tm) cur.itens.push({desc:"TAXA DE ADMINISTRAÇÃO", valor:parseBRL(tm[1])});
+    let m;
+    ITEM_COD_RE.lastIndex = 0;
+    while((m = ITEM_COD_RE.exec(blob))){
+      cur.itens.push({desc:m[2].trim(), valor:parseBRL(m[3])});
+    }
+    // Confere contra o Líquido do SUB-TOTAL que o próprio relatório imprime — se a soma dos
+    // itens reconhecidos não bater, sobra algum item com layout/código que essa versão do
+    // parser não cobre ainda. Em vez de deixar sumir silenciosamente, lança a diferença como
+    // um item "não classificado" (cai na revisão manual da tela de Lançamentos).
+    const stm = blob.match(SUBTOTAL_RE);
+    if(stm && !cur.semEmissao){
+      const liquidoImpresso = stm[3]!=null ? parseBRL(stm[3]) : (stm[2]==null ? parseBRL(stm[1]) : null);
+      if(liquidoImpresso!=null){
+        const somaAtual = cur.itens.reduce((s,i)=>s+i.valor,0);
+        const diff = Math.round((liquidoImpresso - somaAtual)*100)/100;
+        if(Math.abs(diff)>=0.01) cur.itens.push({desc:"Diferença não classificada (conferir PDF)", valor:diff});
+      }
+    }
+    repasses.push(cur);
+  });
+
   avulsoImoveis.forEach((imv,i)=>{
     if(avulsoValores[i]==null) return;
-    repasses.push({ref:"jk-avulso-"+imv+"-"+i, contrato:null, imovelJK:imv, nome:"", itens:[{desc:avulsoCodigos[i]||"Avulso", valor:avulsoValores[i]}], avulso:true});
+    repasses.push({ref:"jk-avulso-"+imv+"-"+i, contrato:null, imovelJK:imv, nome:"", enderecoAvulso:avulsoEnderecos[i]||"", itens:[{desc:avulsoCodigos[i]||"Avulso", valor:avulsoValores[i]}], avulso:true});
   });
   return repasses.filter(r=>r.itens.length>0);
 }
@@ -870,10 +942,8 @@ function parseCancian(lines){
 }
 
 /* =========================================================================
-   PARSER — Casarão (letras de rótulo saem duplicadas no PDF — só nas linhas
-   de cabeçalho/rótulo, as linhas de dado já vêm limpas)
+   PARSER — Casarão
    ========================================================================= */
-function undoubleLetters(s){ return s.replace(/([A-Za-zÀ-ÿ])\1/g, "$1"); }
 function parseCasarao(lines){
   const repasses = [];
   // Itens que aparecem ANTES do primeiro bloco "Código:" (ex. tarifa de remessa cobrada no
@@ -882,18 +952,17 @@ function parseCasarao(lines){
   // no mesmo PDF, viram um item avulso não classificado (flagado pra revisão manual).
   const geral = {ref:"casarao-geral", contrato:null, nome:"", itens:[]};
   let cur = null, done = false;
-  const COD_RE = /^C[oó]digo:+\s*(\d+)\s+Endere[çc]o:+/i;
-  const LOC_RE = /^Locat[aá]rio:+\s*(.+?)\s*-\s*CPF\/*CNPJ:+\s*(\S+)/i;
+  const COD_RE = /^C[oó]digo:\s*(\d+)\s+Endere[çc]o:/i;
+  const LOC_RE = /^Locat[aá]rio:\s*(.+?)\s*-\s*CPF\/CNPJ:\s*(\S+)/i;
   const ITEM_RE = /^(\d{2}\/\d{2}\/\d{4})\s+(\d{2}\/\d{4})\s+(.+?)\s+R\$\s*(-?[\d.,]+)\s+R\$\s*(-?[\d.,]+)(?:\s+R\$\s*(-?[\d.,]+))?$/;
-  lines.forEach(raw=>{
-    if(/^RESUMO POR TAXAS/i.test(undoubleLetters(raw))){ done = true; return; }
+  lines.forEach(line=>{
+    if(/^RESUMO POR TAXAS/i.test(line)){ done = true; return; }
     if(done) return;
-    const line = undoubleLetters(raw);
     const cm = line.match(COD_RE);
     if(cm){ cur = {ref:"casarao-"+cm[1], contrato:cm[1], nome:"", itens:[]}; repasses.push(cur); return; }
     const lm = line.match(LOC_RE);
     if(lm && cur){ cur.nome = lm[1].trim(); cur.cpf = lm[2]; return; }
-    const itm = raw.match(ITEM_RE); // linha de item já vem limpa — usa a linha crua
+    const itm = line.match(ITEM_RE);
     if(itm){
       const debito = parseBRL(itm[4])||0, credito = parseBRL(itm[5])||0;
       const valor = credito - debito; // sinal único: positivo=crédito, negativo=débito
@@ -955,7 +1024,7 @@ function parseRioBranco(lines){
    ========================================================================= */
 function buildRow(repasse, inq, dataRecebimento){
   const row = {
-    _repasseRef: repasse.ref, locadora: repasse._locadoraNome,
+    _repasseRef: repasse.ref, avulso: !!repasse.avulso, locadora: repasse._locadoraNome,
     conta: inq?inq.conta:null, cliente: inq?inq.cliente:(repasse.nome||"(não identificado)"),
     imovel: inq?inq.imovel:(repasse.imovelDesc||""),
     aluguelContrato:0, descontoReajuste:0, comp:"",
@@ -982,7 +1051,10 @@ function buildRow(repasse, inq, dataRecebimento){
     else if(tipo==="seguro345") row.seguro += Math.abs(it.valor);
     else { row.observacao.push(`${it.desc}: ${fmtBRL(it.valor)}`); row.flag = true; }
   });
-  if(!row.aluguelContrato && inq && inq.aluguelContrato) row.aluguelContrato = inq.aluguelContrato;
+  // Só preenche o Aluguel Contrato pelo cadastro quando a linha É de fato um recebimento de
+  // aluguel sem o item "Aluguel" reconhecido — nunca pra avulsos (condomínio/multa avulsos
+  // não têm nada a ver com o valor do aluguel do contrato, isso inflaria o valor bruto).
+  if(!repasse.avulso && !row.aluguelContrato && inq && inq.aluguelContrato) row.aluguelContrato = inq.aluguelContrato;
   row.valorBruto = row.aluguelContrato - row.descontoReajuste;
   row.observacao = row.observacao.join("; ");
   if(!dataRecebimento) row.flag = true;
@@ -1096,7 +1168,26 @@ async function processarLancamentos(){
   }
 }
 function finalizeRepasse(r, data){
-  const inq = resolveInquilino({cpf:r.cpf, contrato:r.contrato, nome:r.nome, imovelHint:r.imovelDesc});
+  let inq = resolveInquilino({cpf:r.cpf, contrato:r.contrato, nome:r.nome, imovelHint:r.imovelDesc});
+  // "Lançamentos Avulsos" da JK (condomínio/chamada extra) não trazem inquilino — casa pelo
+  // imóvel/apartamento. Se o imóvel estiver desocupado no cadastro, não dá pra tratar como
+  // recebimento normal (não tem de quem cobrar) — fica flagado à parte, sem inventar conta
+  // de despesa, até você confirmar o número certo.
+  if(!inq && r.avulso && r.enderecoAvulso){
+    const imv = resolveImovelByEndereco(r.enderecoAvulso);
+    if(imv){
+      const ocupante = getInquilinoByConta(imv.conta);
+      if(ocupante && ocupante.cliente !== "Desocupado"){
+        inq = ocupante;
+      } else {
+        const row = buildRow(r, null, data);
+        row.imovel = imv.imovel; row.cliente = "(Desocupado)"; row.flag = true;
+        row.observacao = (row.observacao ? row.observacao+"; " : "") + "Imóvel desocupado — lançar como despesa de condomínio (falta o nº da conta de despesa; hoje o valor fica sem conta de débito pra você completar)";
+        lancamentosRows.push(row);
+        return;
+      }
+    }
+  }
   const row = buildRow(r, inq, data);
   lancamentosRows.push(row);
   if(!inq) revisaoInquilino.push(row);
@@ -1124,7 +1215,7 @@ function resolverRevisaoInquilino(i, contaStr){
   const inq = inquilinosDB.find(x=>String(x.conta)===String(contaStr));
   if(!inq) return;
   row.conta = inq.conta; row.cliente = inq.cliente; row.imovel = inq.imovel;
-  if(!row.aluguelContrato && inq.aluguelContrato) row.aluguelContrato = inq.aluguelContrato;
+  if(!row.avulso && !row.aluguelContrato && inq.aluguelContrato) row.aluguelContrato = inq.aluguelContrato;
   row.flag = !row.dataRecebimento;
   revisaoInquilino.splice(i,1);
   renderRevisaoInquilino();
