@@ -1170,9 +1170,9 @@ async function processarLancamentos(){
 function finalizeRepasse(r, data){
   let inq = resolveInquilino({cpf:r.cpf, contrato:r.contrato, nome:r.nome, imovelHint:r.imovelDesc});
   // "Lançamentos Avulsos" da JK (condomínio/chamada extra) não trazem inquilino — casa pelo
-  // imóvel/apartamento. Se o imóvel estiver desocupado no cadastro, não dá pra tratar como
-  // recebimento normal (não tem de quem cobrar) — fica flagado à parte, sem inventar conta
-  // de despesa, até você confirmar o número certo.
+  // imóvel/apartamento. Imóvel desocupado vai como despesa direto na 341 (mesma conta dos
+  // outros condomínios, sem inquilino pra creditar) — o próprio balanço D:Banco/D:341 do lote
+  // já fecha sozinho, não precisa de conta separada nem de revisão manual.
   if(!inq && r.avulso && r.enderecoAvulso){
     const imv = resolveImovelByEndereco(r.enderecoAvulso);
     if(imv){
@@ -1181,8 +1181,8 @@ function finalizeRepasse(r, data){
         inq = ocupante;
       } else {
         const row = buildRow(r, null, data);
-        row.imovel = imv.imovel; row.cliente = "(Desocupado)"; row.flag = true;
-        row.observacao = (row.observacao ? row.observacao+"; " : "") + "Imóvel desocupado — lançar como despesa de condomínio (falta o nº da conta de despesa; hoje o valor fica sem conta de débito pra você completar)";
+        row.imovel = imv.imovel; row.cliente = "(Desocupado)"; row.flag = !data;
+        row.observacao = (row.observacao ? row.observacao+"; " : "") + "Imóvel desocupado — condomínio lançado direto na 341, sem inquilino pra creditar.";
         lancamentosRows.push(row);
         return;
       }
