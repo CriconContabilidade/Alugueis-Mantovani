@@ -1247,11 +1247,43 @@ function renderLancTable(){
   const box = document.getElementById("boxLancamentos");
   box.classList.toggle("hidden", lancamentosRows.length===0);
   if(!lancamentosRows.length){ document.getElementById("boxExportar").classList.add("hidden"); return; }
-  const totalLiquido = lancamentosRows.reduce((s,r)=>s+(r.valorLiquido||0),0);
-  let html = `<div class="summary-row">
-    <div class="item"><div class="k">Linhas</div><div class="v">${lancamentosRows.length}</div></div>
-    <div class="item"><div class="k">Total Valor Líquido</div><div class="v">R$ ${fmtBRL(totalLiquido)}</div></div>
-  </div>
+  const totais = {
+  aluguelContrato: 0,
+  descontoReajuste: 0,
+  valorBruto: 0,
+  taxaAdm: 0,
+  fundoReserva: 0,
+  iptuRessarcido791: 0,
+  iptuPago747: 0,
+  condChamExtra: 0,
+  jurosRec: 0,
+  despBancaria: 0,
+  manutencao: 0,
+  seguro: 0,
+  valorLiquido: 0,
+  pis: 0,
+  cofins: 0
+};
+
+lancamentosRows.forEach(r => {
+  totais.aluguelContrato += Number(r.aluguelContrato) || 0;
+  totais.descontoReajuste += Number(r.descontoReajuste) || 0;
+  totais.valorBruto += Number(r.valorBruto) || 0;
+  totais.taxaAdm += Number(r.taxaAdm) || 0;
+  totais.fundoReserva += Number(r.fundoReserva) || 0;
+  totais.iptuRessarcido791 += Number(r.iptuRessarcido791) || 0;
+  totais.iptuPago747 += Number(r.iptuPago747) || 0;
+  totais.condChamExtra += Number(r.condChamExtra) || 0;
+  totais.jurosRec += Number(r.jurosRec) || 0;
+  totais.despBancaria += Number(r.despBancaria) || 0;
+  totais.manutencao += Number(r.manutencao) || 0;
+  totais.seguro += Number(r.seguro) || 0;
+  totais.valorLiquido += Number(r.valorLiquido) || 0;
+  totais.pis += (Number(r.valorBruto) || 0) * 0.0065;
+  totais.cofins += (Number(r.valorBruto) || 0) * 0.03;
+});
+
+let html = `<div class="help">
   <div class="help">O <b>Nº Doc. NFS</b> é o número da nota que você gera no Domínio — preencha aqui pra ele já sair certo na planilha Mantovani (NFS); se ficar em branco, a exportação também sai em branco pra você completar depois.</div>
   <div class="table-wrap"><table class="preview"><thead><tr>
     <th>Locadora</th><th>Cliente</th><th>Nº Doc. NFS</th><th>Imóvel</th><th>Aluguel Contrato</th><th>Desc.Reajuste</th><th>Comp.</th><th>Valor Bruto</th>
@@ -1286,7 +1318,47 @@ function renderLancTable(){
       <td><button class="btn small ghost" onclick="lancamentosRows.splice(${i},1);renderLancTable();">✕</button></td>
     </tr>`;
   });
-  html += `</tbody></table></div>`;
+  html += `
+</tbody>
+
+<tfoot>
+<tr style="font-weight:700;background:#f1f1f1;border-top:2px solid #999;">
+
+  <td>TOTAL</td>
+  <td></td>
+  <td></td>
+  <td></td>
+
+  <td class="num">R$ ${fmtBRL(totais.aluguelContrato)}</td>
+  <td class="num">R$ ${fmtBRL(totais.descontoReajuste)}</td>
+
+  <td></td>
+
+  <td class="num">R$ ${fmtBRL(totais.valorBruto)}</td>
+  <td class="num">R$ ${fmtBRL(totais.taxaAdm)}</td>
+  <td class="num">R$ ${fmtBRL(totais.fundoReserva)}</td>
+  <td class="num">R$ ${fmtBRL(totais.iptuRessarcido791)}</td>
+  <td class="num">R$ ${fmtBRL(totais.iptuPago747)}</td>
+  <td class="num">R$ ${fmtBRL(totais.condChamExtra)}</td>
+  <td class="num">R$ ${fmtBRL(totais.jurosRec)}</td>
+  <td class="num">R$ ${fmtBRL(totais.despBancaria)}</td>
+  <td class="num">R$ ${fmtBRL(totais.manutencao)}</td>
+  <td class="num">R$ ${fmtBRL(totais.seguro)}</td>
+  <td class="num">R$ ${fmtBRL(totais.valorLiquido)}</td>
+
+  <td></td>
+
+  <td class="num">R$ ${fmtBRL(totais.pis)}</td>
+  <td class="num">R$ ${fmtBRL(totais.cofins)}</td>
+
+  <td></td>
+  <td></td>
+
+</tr>
+</tfoot>
+
+</table>
+</div>`;
   document.getElementById("lancamentosResult").innerHTML = html;
   document.getElementById("boxExportar").classList.remove("hidden");
 }
