@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aluguéis Mantovani</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --ink:#1A1A1A;
+  --ink-soft:#65656B;
+  --paper:#E7E6E2;
+  --paper-raised:#FFFFFF;
+  --rule:#D6D5D1;
+  --rule-strong:#A9A7A2;
+  --red:#A6392C;
+  --red-bg:#F6E1DC;
+  --green-ink:#1F5E3C;
+  --green-bg:#DEEEE3;
+  --amber:#8A6400;
+  --amber-bg:#FCEEA9;
+  --accent:#2B4C7E;
+  --accent-bg:#DDE6F2;
+  --shadow: 0 1px 2px rgba(0,0,0,0.06), 0 4px 14px rgba(0,0,0,0.06);
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:'IBM Plex Sans',sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.app{max-width:1280px;margin:0 auto;padding:28px 20px 80px;}
+
+.topbar{padding-bottom:18px;margin-bottom:22px;border-bottom:2px solid var(--ink);display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;}
+.brand h1{font-family:'Source Serif 4',serif;font-size:26px;font-weight:800;margin:0 0 4px;letter-spacing:-0.01em;}
+.brand .sub{font-size:13px;color:var(--ink-soft);}
+.backlink{font-size:12.5px;color:var(--ink-soft);text-decoration:none;border-bottom:1px dotted var(--ink-soft);}
+.backlink:hover{color:var(--ink);}
+.cricon-brand{display:flex;align-items:center;gap:8px;}
+.cricon-brand svg{width:28px;height:auto;flex-shrink:0;}
+.cricon-brand .cw{line-height:1.05;text-align:right;}
+.cricon-brand .cw .nm{font-family:'Source Serif 4',serif;font-style:italic;font-weight:700;font-size:14px;color:#5D4232;white-space:nowrap;}
+.cricon-brand .cw .tg{font-family:'IBM Plex Sans',sans-serif;font-size:9px;color:var(--ink-soft);letter-spacing:.02em;white-space:nowrap;}
+
+.card{background:var(--paper-raised);border:1.5px solid var(--ink);border-radius:6px;box-shadow:var(--shadow);padding:20px;margin-bottom:20px;}
+
+.grid-picker{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;}
+.pick-card{border:1.5px solid var(--rule-strong);border-radius:6px;padding:16px;cursor:pointer;transition:border-color .15s, background .15s;background:var(--paper-raised);}
+.pick-card:hover{border-color:var(--ink);background:rgba(0,0,0,0.02);}
+.pick-card .icon{font-size:22px;margin-bottom:6px;}
+.pick-card .name{font-weight:700;font-size:14.5px;margin-bottom:4px;}
+.pick-card .desc{font-size:12px;color:var(--ink-soft);line-height:1.4;}
+
+.crumbs{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-soft);margin-bottom:14px;}
+.crumbs a{color:var(--ink-soft);cursor:pointer;text-decoration:underline;}
+.crumbs a:hover{color:var(--ink);}
+
+.dropzone{border:2px dashed var(--rule-strong);border-radius:6px;padding:22px 14px;text-align:center;cursor:pointer;transition:background .15s,border-color .15s;}
+.dropzone:hover,.dropzone.drag{background:rgba(0,0,0,0.03);border-color:var(--ink);}
+.dropzone .big{font-size:13.5px;font-weight:600;margin-bottom:4px;}
+.dropzone .small{font-size:11.5px;color:var(--ink-soft);}
+.dropzone.done{border-style:solid;border-color:var(--green-ink);background:var(--green-bg);}
+.dropzone.optional{opacity:.75;}
+input[type=file]{display:none;}
+
+.doc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-bottom:14px;}
+
+.field-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:14px;}
+.field label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);margin-bottom:4px;font-family:'IBM Plex Mono',monospace;}
+.field input,.field select,.field textarea{width:100%;padding:7px 9px;border:1.5px solid var(--rule-strong);border-radius:4px;font-size:13.5px;font-family:'IBM Plex Mono',monospace;background:var(--paper-raised);color:var(--ink);}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--ink);}
+
+.btn{padding:9px 16px;border-radius:4px;border:1.5px solid var(--ink);background:var(--ink);color:var(--paper);cursor:pointer;font-weight:600;font-size:13.5px;transition:transform .08s ease,opacity .15s;font-family:'IBM Plex Sans',sans-serif;}
+.btn:hover{opacity:.88;}
+.btn:active{transform:translateY(1px);}
+.btn.ghost{background:transparent;color:var(--ink);}
+.btn.ghost:hover{background:rgba(0,0,0,0.06);}
+.btn.small{padding:5px 10px;font-size:12px;}
+.btn:disabled{opacity:.35;cursor:not-allowed;}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;}
+
+.status-line{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--ink-soft);margin-top:10px;white-space:pre-wrap;}
+.status-line.err{color:var(--red);}
+.status-line.ok{color:var(--green-ink);}
+
+.badge{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.03em;padding:2px 8px;border-radius:10px;font-weight:600;}
+.badge.ok{background:var(--green-bg);color:var(--green-ink);}
+.badge.warn{background:var(--amber-bg);color:var(--amber);}
+.badge.err{background:var(--red-bg);color:var(--red);}
+.badge.info{background:var(--accent-bg);color:var(--accent);}
+
+.summary-row{display:flex;gap:18px;flex-wrap:wrap;margin:14px 0;font-size:13px;}
+.summary-row .item .k{color:var(--ink-soft);font-size:11px;text-transform:uppercase;letter-spacing:.03em;font-family:'IBM Plex Mono',monospace;}
+.summary-row .item .v{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:16px;}
+
+table.preview{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px;}
+table.preview th{text-align:left;padding:7px 8px;border-bottom:1.5px solid var(--rule-strong);font-family:'IBM Plex Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.03em;color:var(--ink-soft);position:sticky;top:0;background:var(--paper-raised);white-space:nowrap;}
+table.preview td{padding:6px 8px;border-bottom:1px solid var(--rule);vertical-align:top;}
+table.preview td.num{text-align:right;font-family:'IBM Plex Mono',monospace;white-space:nowrap;}
+table.preview tr.flag{background:var(--amber-bg);}
+table.preview tr.excluded{opacity:.45;}
+.table-wrap{max-height:460px;overflow:auto;border:1px solid var(--rule);border-radius:4px;}
+select.mini{font-family:'IBM Plex Mono',monospace;font-size:11.5px;padding:3px 5px;border:1.5px solid var(--rule-strong);border-radius:4px;max-width:260px;}
+.cell-input{font-family:'IBM Plex Mono',monospace;font-size:12px;padding:3px 5px;border:1.5px solid transparent;border-radius:3px;background:transparent;width:100%;min-width:70px;color:var(--ink);}
+.cell-input:hover{border-color:var(--rule-strong);}
+.cell-input:focus{outline:none;border-color:var(--ink);background:var(--paper-raised);}
+.cell-input.num{text-align:right;font-weight:600;}
+.cell-input.wide{min-width:180px;}
+td.cell{padding:2px 4px;}
+
+.hidden{display:none !important;}
+.section-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin:0 0 12px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
+.help{font-size:12px;color:var(--ink-soft);line-height:1.5;margin-bottom:14px;}
+.help b{color:var(--ink);}
+footer{margin-top:30px;font-size:11.5px;color:var(--ink-soft);text-align:center;}
+code{background:var(--paper);padding:1px 5px;border-radius:3px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="brand">
+      <h1>Aluguéis Mantovani</h1>
+      <div class="sub">Processamento 100% local no navegador — cadastro de imóveis/inquilinos, controle de IPTU, lançamentos mensais das 6 imobiliárias e geração das planilhas Mantovani (NFS), Baixas de Serviços e Lançamentos.</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
+      <a class="backlink" href="https://criconcontabilidade.github.io/Cricon-Ferramentas/" onclick="window.close(); setTimeout(function(){ location.href='https://criconcontabilidade.github.io/Cricon-Ferramentas/'; }, 250); return false;" id="hubLink">← Hub de Ferramentas</a>
+      <div class="cricon-brand">
+        <svg viewBox="0 0 141 109" xmlns="http://www.w3.org/2000/svg"><path d="M 15.33 33.25 L 9.50 52.58 L 11.33 74.33 L 19.08 90.67 L 36.17 102.92 L 57.25 104.92 L 73.25 100.08 L 84.92 104.83 L 100.25 104.83 L 115.75 97.92 L 126.00 85.67 L 129.92 74.17 L 130.25 61.92 L 60.92 62.08 L 62.42 49.00 L 130.58 48.75 L 129.92 37.75 L 126.75 29.75 L 118.33 20.33 L 111.42 16.33 L 97.92 12.75 L 88.58 12.67 L 72.58 18.17 L 59.83 13.67 L 41.33 13.58 L 26.42 20.42 Z M 78.58 93.58 L 86.00 80.08 L 86.00 78.42 L 87.00 77.08 L 87.00 74.33 L 87.92 72.75 L 88.33 69.50 L 120.42 69.42 L 121.00 69.92 L 121.08 74.17 L 120.17 75.42 L 120.08 77.17 L 119.25 78.25 L 119.25 79.58 L 117.33 83.67 L 115.83 85.17 L 114.75 87.33 L 111.33 90.75 L 109.25 91.75 L 108.08 92.92 L 102.33 95.92 L 100.33 96.00 L 98.50 97.00 L 85.58 97.00 L 84.42 96.00 L 82.58 95.92 Z M 62.33 69.50 L 78.42 69.42 L 79.25 70.08 L 79.25 70.92 L 78.33 72.58 L 78.33 74.25 L 77.42 75.42 L 77.42 77.00 L 76.50 78.25 L 76.58 79.67 L 76.00 80.33 L 75.58 81.67 L 74.92 82.33 L 74.67 83.58 L 73.92 84.33 L 73.58 85.50 L 71.67 87.58 L 71.17 87.50 L 70.75 87.00 L 69.92 86.67 L 69.00 85.25 L 66.75 82.83 L 66.25 81.42 L 63.83 77.00 L 63.75 75.25 L 62.83 74.17 L 62.83 71.67 L 61.92 70.58 L 61.92 69.92 Z M 20.17 69.75 L 20.58 69.42 L 52.00 69.67 L 52.83 70.58 L 53.17 72.50 L 54.08 73.67 L 54.17 75.50 L 55.08 76.50 L 55.00 78.17 L 56.00 80.75 L 59.67 86.42 L 60.00 87.83 L 61.58 89.33 L 61.83 90.58 L 63.50 92.33 L 63.42 93.75 L 62.58 94.83 L 61.33 95.08 L 60.33 96.00 L 58.42 96.08 L 57.42 97.00 L 43.83 97.00 L 42.58 96.00 L 41.00 96.00 L 39.75 95.08 L 38.42 95.08 L 36.25 94.08 L 34.75 92.67 L 30.33 90.25 L 26.67 86.50 L 26.42 85.33 L 23.08 81.00 L 22.83 79.08 L 21.00 76.25 L 20.92 73.83 L 20.00 72.50 Z M 19.08 50.08 L 20.42 49.00 L 51.83 49.08 L 52.33 49.58 L 52.25 55.25 L 51.42 57.83 L 51.42 61.17 L 50.67 61.83 L 18.58 61.83 L 18.08 61.33 L 18.08 58.58 L 19.08 56.17 Z M 72.67 28.83 L 75.50 31.67 L 76.58 33.58 L 77.42 34.58 L 77.58 36.42 L 78.42 37.50 L 78.33 38.92 L 79.33 40.33 L 79.25 41.00 L 78.50 41.42 L 65.25 41.33 L 64.67 40.58 L 64.58 39.67 L 65.42 38.50 L 65.67 37.42 L 66.42 36.50 L 66.58 35.50 L 68.00 33.92 L 68.50 32.58 L 72.00 29.00 Z M 80.17 23.67 L 81.50 22.33 L 82.75 22.00 L 83.75 21.17 L 85.50 21.08 L 86.58 20.17 L 99.25 20.17 L 100.33 21.08 L 103.00 21.17 L 104.25 22.08 L 107.75 23.08 L 109.42 24.67 L 112.67 26.00 L 117.08 30.42 L 120.17 35.50 L 120.17 37.00 L 121.17 38.50 L 121.08 40.83 L 120.42 41.42 L 88.50 41.42 L 87.92 40.67 L 87.92 38.33 L 86.92 36.92 L 86.92 34.50 L 86.17 33.75 L 84.75 30.33 L 80.75 25.42 Z M 64.58 23.67 L 63.33 26.33 L 61.08 28.58 L 60.67 29.83 L 59.17 31.33 L 58.75 32.75 L 57.33 34.33 L 56.08 37.00 L 55.92 38.33 L 55.08 39.25 L 55.08 40.75 L 54.42 41.42 L 22.58 41.50 L 22.17 41.17 L 22.92 39.42 L 22.83 38.42 L 26.83 31.42 L 33.17 25.17 L 41.00 21.17 L 43.58 21.08 L 44.75 20.17 L 57.50 20.17 L 58.92 21.00 L 60.83 21.17 L 63.08 22.17 Z" fill="#5D4232" fill-rule="evenodd"/></svg>
+        <div class="cw"><div class="nm">Contabilidade Cricon</div><div class="tg">Contabilizando seu sucesso!</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="crumbs" class="crumbs hidden"></div>
+
+  <!-- ===================== HOME ===================== -->
+  <div id="screen-home">
+    <div class="card">
+      <div class="section-title">Lançamentos</div>
+      <div class="grid-picker">
+        <div class="pick-card" onclick="goLancamentos()">
+          <div class="icon">🧾</div>
+          <div class="name">Lançamentos do mês</div>
+          <div class="desc">Carregue o extrato bancário, os repasses das imobiliárias e o Contas a Receber para gerar as 3 planilhas de importação.</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-title">Cadastros</div>
+      <div class="grid-picker">
+        <div class="pick-card" onclick="goCadastro('imoveis')">
+          <div class="icon">🏠</div>
+          <div class="name">Imóveis</div>
+          <div class="desc">Imóvel, Endereço, Locadora e Conta — os aluguéis recebidos vão sempre para a conta do imóvel.</div>
+        </div>
+        <div class="pick-card" onclick="goCadastro('inquilinos')">
+          <div class="icon">👤</div>
+          <div class="name">Inquilinos</div>
+          <div class="desc">Conta, Locadora, CPF, Código Cliente, Cliente, Imóvel, Código Contrato e Aluguel Contrato.</div>
+        </div>
+        <div class="pick-card" onclick="goCadastro('locadoras')">
+          <div class="icon">🏢</div>
+          <div class="name">Locadoras / Imobiliárias</div>
+          <div class="desc">As 6 imobiliárias, conta de taxa administrativa e palavras-chave de reconhecimento no extrato.</div>
+        </div>
+        <div class="pick-card" onclick="goIptu()">
+          <div class="icon">📐</div>
+          <div class="name">Controle de IPTU</div>
+          <div class="desc">Saldo de IPTU pago no repasse (747) x ressarcido pelo inquilino (791), por imóvel, acumulado ao longo do ano.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== CADASTRO: IMÓVEIS ===================== -->
+  <div id="screen-cad-imoveis" class="hidden">
+    <div class="card">
+      <div class="help">Cadastro de imóveis. O aluguel recebido de um imóvel sempre vai para a <b>Conta</b> do imóvel, mesmo quando há aluguel em atraso de um inquilino anterior — por isso a conta pertence ao imóvel, não ao inquilino.</div>
+      <div class="table-wrap"><table class="preview" id="imoveisTable"></table></div>
+      <div class="btn-row">
+        <button class="btn" onclick="addImovelRow()">+ Novo imóvel</button>
+        <button class="btn ghost" onclick="exportJson('mantovani_imoveis','imoveis.json')">Exportar JSON</button>
+        <label class="btn ghost small" style="display:inline-block;text-align:center;cursor:pointer;">Importar JSON<input type="file" accept=".json" onchange="importJson(event,'imoveis')" style="display:none"></label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== CADASTRO: INQUILINOS ===================== -->
+  <div id="screen-cad-inquilinos" class="hidden">
+    <div class="card">
+      <div class="help">Cadastro de inquilinos. <b>Conta</b> aqui é a mesma conta do imóvel que ele ocupa hoje — usada pra achar o imóvel/CPF durante o processamento dos lançamentos.</div>
+      <div class="table-wrap"><table class="preview" id="inquilinosTable"></table></div>
+      <div class="btn-row">
+        <button class="btn" onclick="addInquilinoRow()">+ Novo inquilino</button>
+        <button class="btn ghost" onclick="exportJson('mantovani_inquilinos','inquilinos.json')">Exportar JSON</button>
+        <label class="btn ghost small" style="display:inline-block;text-align:center;cursor:pointer;">Importar JSON<input type="file" accept=".json" onchange="importJson(event,'inquilinos')" style="display:none"></label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== CADASTRO: LOCADORAS ===================== -->
+  <div id="screen-cad-locadoras" class="hidden">
+    <div class="card">
+      <div class="help">Conta de Taxa Administrativa de cada imobiliária (débito quando ela desconta a taxa no repasse) e as palavras-chave usadas pra reconhecer o pagador dela no extrato bancário (ex.: "JK IMOVEIS", "MELO IMOVEIS", "FRANCINE"). Deixe a conta em branco se ainda não tiver o número.</div>
+      <div class="table-wrap"><table class="preview" id="locadorasTable"></table></div>
+      <div class="btn-row">
+        <button class="btn ghost" onclick="exportJson('mantovani_locadoras','locadoras.json')">Exportar JSON</button>
+        <label class="btn ghost small" style="display:inline-block;text-align:center;cursor:pointer;">Importar JSON<input type="file" accept=".json" onchange="importJson(event,'locadoras')" style="display:none"></label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== CONTROLE DE IPTU ===================== -->
+  <div id="screen-iptu" class="hidden">
+    <div class="card">
+      <div class="help">Somatório automático dos lançamentos já processados nesta ferramenta: <b>IPTU pago no repasse</b> (conta 747, é a imobiliária descontando o IPTU de Mantovani) menos <b>IPTU ressarcido</b> (conta 791, é o inquilino devolvendo aos poucos ao longo do ano). O saldo positivo é o quanto ainda falta o inquilino ressarcir. Só considera os meses que já passaram pelo "Processar" da tela de Lançamentos — nada de cadastro manual aqui.</div>
+      <div id="iptuContent"></div>
+    </div>
+  </div>
+
+  <!-- ===================== LANÇAMENTOS DO MÊS ===================== -->
+  <div id="screen-lancamentos" class="hidden">
+    <div class="card">
+      <div class="section-title">Documentos do mês</div>
+      <div class="help">Carregue o extrato bancário e os relatórios de repasse das imobiliárias que enviaram esse mês (nem todas precisam vir — só processa o que for anexado) e, se puder, o relatório <b>Contas a Receber por Cliente</b> do Domínio (usado pra achar o número da nota/vencimento na planilha de Baixas de Serviços). Depois clique em <b>Processar</b>.</div>
+      <div class="doc-grid" id="lancDocGrid"></div>
+      <div class="btn-row"><button class="btn" id="lancProcessBtn" onclick="processarLancamentos()">Processar</button></div>
+      <div id="lancStatus" class="status-line hidden"></div>
+    </div>
+
+    <div id="boxRevisao" class="hidden"></div>
+
+    <div id="boxLancamentos" class="card hidden">
+      <div class="section-title">Lançamentos do mês</div>
+      <div id="lancamentosResult"></div>
+    </div>
+
+    <div id="boxExportar" class="card hidden">
+      <div class="section-title">Exportar</div>
+      <div class="help">Gera as 3 planilhas a partir da tabela acima (edite os campos antes de exportar, se precisar corrigir algo).</div>
+      <div class="btn-row">
+        <button class="btn" onclick="downloadMantovaniXlsx()">Mantovani (NFS) — .xlsx</button>
+        <button class="btn ghost" onclick="downloadMantovaniTxt()">Mantovani (NFS) — .txt</button>
+        <button class="btn" onclick="downloadBaixasXlsx()">Baixas de Serviços — .xlsx</button>
+        <button class="btn ghost" onclick="downloadBaixasTxt()">Baixas de Serviços — .txt</button>
+        <button class="btn" onclick="downloadLancMantovaniXlsx()">Lançamentos Mantovani — .xlsx</button>
+        <button class="btn ghost" onclick="downloadLancMantovaniTxt()">Lançamentos Mantovani — .txt</button>
+      </div>
+      <div id="exportStatus" class="status-line hidden"></div>
+    </div>
+  </div>
+
+  <footer>Aluguéis Mantovani · Cricon Contabilidade — uso interno</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+/* =========================================================================
+   HELPERS: valores / datas / download (mesma lógica das outras ferramentas do Hub)
+   ========================================================================= */
+function parseBRL(str){
+  if(str==null) return null;
+  str = String(str).trim();
+  if(str==="" || str==="-" || str==="–") return null;
+  const neg = /^-/.test(str) || /^\(.*\)$/.test(str);
+  str = str.replace(/[()\-]/g,"").replace(/R\$/g,"").replace(/\s+/g,"").replace(/\./g,"").replace(",",".").trim();
+  const n = parseFloat(str);
+  if(isNaN(n)) return null;
+  return neg ? -n : n;
+}
+function fmtBRL(n){
+  if(n==null || isNaN(n)) return "";
+  return n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function fmtValorTxt(n){
+  if(n==null || n==="" || isNaN(n)) return "0";
+  const r = Math.round(Number(n)*100)/100;
+  if(r === 0) return "0";
+  if(Number.isInteger(r)) return String(r);
+  return r.toFixed(2).replace(".",",");
+}
+function brDateToParts(str){
+  const m = String(str).trim().match(/^(\d{2})\/(\d{2})\/(\d{2,4})$/);
+  if(!m) return null;
+  let [_,dd,mm,yy] = m;
+  if(yy.length===2) yy = (parseInt(yy)>50 ? "19":"20")+yy;
+  return {y:parseInt(yy), m:parseInt(mm), d:parseInt(dd)};
+}
+function fmtDateBR(dt){ if(!dt) return ""; return `${String(dt.d).padStart(2,"0")}/${String(dt.m).padStart(2,"0")}/${dt.y}`; }
+function dateKey(dt){ if(!dt) return ""; return `${dt.y}-${String(dt.m).padStart(2,"0")}-${String(dt.d).padStart(2,"0")}`; }
+function dateVal(dt){ if(!dt) return null; return dt.y*10000+dt.m*100+dt.d; }
+
+function downloadText(filename, content, mime){
+  const blob = new Blob([content], {type: mime||"text/plain;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+function downloadXlsx(filename, rowsAoA, sheetName){
+  const ws = XLSX.utils.aoa_to_sheet(rowsAoA);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, sheetName||"Sheet1");
+  XLSX.writeFile(wb, filename);
+}
+function normalizeText(s){
+  return (s||"").toString().normalize("NFD").replace(/[̀-ͯ]/g,"").toUpperCase().trim();
+}
+function onlyDigits(s){ return (s||"").replace(/\D/g,""); }
+function exportJson(key, filename){ downloadText(filename, localStorage.getItem(key)||"[]", "application/json"); }
+function importJson(evt, which){
+  const file = evt.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const data = JSON.parse(reader.result);
+      if(!Array.isArray(data)) throw new Error("JSON precisa ser uma lista");
+      if(which==="imoveis"){ imoveisDB = data; saveImoveis(imoveisDB); renderImoveisTable(); }
+      if(which==="inquilinos"){ inquilinosDB = data; saveInquilinos(inquilinosDB); renderInquilinosTable(); }
+      if(which==="locadoras"){ locadorasDB = data; saveLocadoras(locadorasDB); renderLocadorasTable(); }
+      alert("Importado com sucesso.");
+    }catch(err){ alert("Arquivo inválido: " + err.message); }
+  };
+  reader.readAsText(file);
+  evt.target.value = "";
+}
+
+/* =========================================================================
+   PDF: extração de linhas de texto (agrupadas por Y, ordenadas por X)
+   ========================================================================= */
+async function extractPdfPageLines(pdf, pageNum){
+  const page = await pdf.getPage(pageNum);
+  const content = await page.getTextContent();
+  const rows = {};
+  content.items.forEach(it=>{
+    const y = Math.round(it.transform[5]);
+    if(!rows[y]) rows[y] = [];
+    rows[y].push({x:it.transform[4], w:it.width||0, text:it.str});
+  });
+  const ys = Object.keys(rows).map(Number).sort((a,b)=>b-a);
+  return ys.map(y=>{
+    const items = rows[y].sort((a,b)=>a.x-b.x);
+    let line = "", prevEnd = null;
+    items.forEach(it=>{
+      if(prevEnd!=null && (it.x - prevEnd) > 1.2) line += " ";
+      line += it.text;
+      prevEnd = it.x + it.w;
+    });
+    return line.replace(/\s+/g," ").trim();
+  }).filter(l=>l.length>0);
+}
+async function extractPdfAllLines(file){
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data:buf}).promise;
+  const pages = [];
+  for(let p=1;p<=pdf.numPages;p++){
+    pages.push(await extractPdfPageLines(pdf, p));
+  }
+  return pages;
+}
+
+/* =========================================================================
+   NAVEGAÇÃO
+   ========================================================================= */
+const SCREENS = ["screen-home","screen-cad-imoveis","screen-cad-inquilinos","screen-cad-locadoras","screen-iptu","screen-lancamentos"];
+function showScreen(id){ SCREENS.forEach(s=>document.getElementById(s).classList.toggle("hidden", s!==id)); }
+function renderCrumbs(parts){
+  const el = document.getElementById("crumbs");
+  if(!parts.length){ el.classList.add("hidden"); return; }
+  el.classList.remove("hidden");
+  el.innerHTML = '<a onclick="goHome()">Início</a>' + parts.map(p=>' / ' + (p.href?`<a onclick="${p.href}">${p.label}</a>`:p.label)).join("");
+}
+function goHome(){ showScreen("screen-home"); renderCrumbs([]); }
+function goCadastro(which){
+  if(which==="imoveis"){ renderImoveisTable(); showScreen("screen-cad-imoveis"); renderCrumbs([{label:"Imóveis"}]); }
+  else if(which==="inquilinos"){ renderInquilinosTable(); showScreen("screen-cad-inquilinos"); renderCrumbs([{label:"Inquilinos"}]); }
+  else { renderLocadorasTable(); showScreen("screen-cad-locadoras"); renderCrumbs([{label:"Locadoras"}]); }
+}
+function goIptu(){ renderIptuTable(); showScreen("screen-iptu"); renderCrumbs([{label:"Controle de IPTU"}]); }
+function goLancamentos(){ resetLancState(); renderDocGrid(); showScreen("screen-lancamentos"); renderCrumbs([{label:"Lançamentos do mês"}]); }
+
+/* =========================================================================
+   CADASTROS — seed inicial (extraído de Recebimentos Mantovani.xlsx) + localStorage
+   ========================================================================= */
+const IMOVEIS_SEED = [
+ {imovel:"Albino João 301", endereco:"Rua Andradas", locadora:"JK", conta:759},
+ {imovel:"Albino João 101", endereco:"Rua Andradas", locadora:"JK", conta:760},
+ {imovel:"Albino João 302", endereco:"Rua Andradas", locadora:"JK", conta:761},
+ {imovel:"Francisco Goya 302", endereco:"Rua Dr. Zamenoff", locadora:"Casarão", conta:762},
+ {imovel:"Francisco Goya 201", endereco:"Rua Dr. Zamenoff", locadora:"JK", conta:763},
+ {imovel:"Francisco Goya 404", endereco:"Rua Dr. Zamenoff", locadora:"Rio Branco", conta:764},
+ {imovel:"Francisco Goya 303", endereco:"Rua Dr. Zamenoff", locadora:"Rio Branco", conta:765},
+ {imovel:"Francisco Goya 102", endereco:"Rua Dr. Zamenoff", locadora:"Cancian", conta:766},
+ {imovel:"Brinco de Pérola 401", endereco:"Rua Rigoberto Duarte", locadora:"Rio Branco", conta:767},
+ {imovel:"Brinco de Pérola 204", endereco:"Rua Rigoberto Duarte", locadora:"JK", conta:768},
+ {imovel:"Murano 104", endereco:"Rua Marques do Herval", locadora:"Toneto", conta:769},
+ {imovel:"Murano 304", endereco:"Rua Marques do Herval", locadora:"Toneto", conta:770},
+ {imovel:"Murano 403", endereco:"Rua Marques do Herval", locadora:"JK", conta:771},
+ {imovel:"Murano 401", endereco:"Rua Marques do Herval", locadora:"Toneto", conta:772},
+ {imovel:"Modigliani 302", endereco:"Rua Visconde de Pelotas", locadora:"JK", conta:773},
+ {imovel:"Tangará 301", endereco:"Rua General Neto", locadora:"JK", conta:784},
+ {imovel:"Albino João 401", endereco:"Rua Andradas, Nº 156", locadora:"Prisma", conta:785},
+ {imovel:"Modigliani 202", endereco:"Rua Visconde de Pelotas", locadora:"JK", conta:789},
+ {imovel:"Antonie Bourdelle 301", endereco:"Rua Barão do Triunfo", locadora:"JK", conta:792},
+ {imovel:"Francisco Goya Box 08", endereco:"Rua Dr. Zamenoff", locadora:"JK", conta:795},
+ {imovel:"Dona Luiza 403", endereco:"Rua Visconde de Pelotas", locadora:"JK", conta:846},
+];
+// "contrato" é o número/código de contrato da PRÓPRIA imobiliária (o que aparece nos PDFs de
+// repasse, ex. "Contrato 14/1" da Toneto ou "Contrato: 2986" da Cancian) — usado como pista de
+// casamento além do nome do inquilino. "codContrato" é o código interno do Domínio (só referência).
+const INQUILINOS_SEED = [
+ {conta:759, locadora:"JK", cpf:"30378630059", codCliente:43, cliente:"CELINA MAGALI PALERMO", imovel:"Albino João 301", codContrato:29, contrato:"1287", aluguelContrato:1104.57},
+ {conta:760, locadora:"JK", cpf:"80418970025", codCliente:22, cliente:"LUCIANO SILVA DOS SANTOS", imovel:"Albino João 101", codContrato:8, contrato:"28504", aluguelContrato:1624.73},
+ {conta:761, locadora:"JK", cpf:"", codCliente:null, cliente:"Desocupado", imovel:"Albino João 302", codContrato:null, contrato:"1343", aluguelContrato:null},
+ {conta:762, locadora:"Casarão", cpf:"5570181024", codCliente:46, cliente:"MILENA CARDOSO XAVIER", imovel:"Francisco Goya 302", codContrato:32, contrato:"8074", aluguelContrato:798.06},
+ {conta:763, locadora:"JK", cpf:"96640111004", codCliente:56, cliente:"MARCELO GONÇALVES ALVES", imovel:"Francisco Goya 201", codContrato:42, contrato:"1426", aluguelContrato:800},
+ {conta:764, locadora:"Rio Branco", cpf:"74195700000", codCliente:57, cliente:"JOCLENIO FRIDEHAN NOSQUIER", imovel:"Francisco Goya 404", codContrato:43, contrato:"1", aluguelContrato:650},
+ {conta:765, locadora:"Rio Branco", cpf:"54754402049", codCliente:59, cliente:"PAULO ANDRÉ BECKER DA SILVA", imovel:"Francisco Goya 303", codContrato:45, contrato:"", aluguelContrato:900},
+ {conta:766, locadora:"Cancian", cpf:"3424521000", codCliente:47, cliente:"THAYSE CAMPOS DE AVILA", imovel:"Francisco Goya 102", codContrato:33, contrato:"2986", aluguelContrato:1019.4},
+ {conta:767, locadora:"Rio Branco", cpf:"2599213002", codCliente:39, cliente:"WAGNER PRATES ROCHA", imovel:"Brinco de Pérola 401", codContrato:26, contrato:"2", aluguelContrato:1161},
+ {conta:768, locadora:"JK", cpf:"4235794019", codCliente:41, cliente:"JENIFFER PASSOS BATISTA", imovel:"Brinco de Pérola 204", codContrato:27, contrato:"1275", aluguelContrato:1012.13},
+ {conta:769, locadora:"Toneto", cpf:"995.437.100-15", codCliente:51, cliente:"EDGAR TONEL ROSSATO", imovel:"Murano 104", codContrato:37, contrato:"181/3", aluguelContrato:996.16},
+ {conta:770, locadora:"Toneto", cpf:"3258838070", codCliente:55, cliente:"NATALIA CORREA DIACOYANNIS", imovel:"Murano 304", codContrato:41, contrato:"14/1", aluguelContrato:1300},
+ {conta:771, locadora:"JK", cpf:"", codCliente:null, cliente:"Desocupado", imovel:"Murano 403", codContrato:null, contrato:"1315", aluguelContrato:null},
+ {conta:772, locadora:"Toneto", cpf:"80370039068", codCliente:20, cliente:"JULIANO PETERSON BARROSO BORGES", imovel:"Murano 401", codContrato:7, contrato:"13/1", aluguelContrato:1580.05},
+ {conta:773, locadora:"JK", cpf:"69685789053", codCliente:29, cliente:"ROBERTO ZIEGLER COSTA", imovel:"Modigliani 302", codContrato:15, contrato:"30307", aluguelContrato:1700.37},
+ {conta:784, locadora:"JK", cpf:"43675484068", codCliente:24, cliente:"MARIA DENISE VIELMO", imovel:"Tangará 301", codContrato:10, contrato:"1502", aluguelContrato:1352.02},
+ {conta:785, locadora:"Prisma", cpf:"004.827.870-07", codCliente:52, cliente:"JOSEANE BOTH MARTINI", imovel:"Albino João 401", codContrato:39, contrato:"682", aluguelContrato:1775.82},
+ {conta:789, locadora:"JK", cpf:"216892023", codCliente:16, cliente:"FERNANDA CADO WAIHRICH", imovel:"Modigliani 202", codContrato:4, contrato:"30609", aluguelContrato:1794.65},
+ {conta:792, locadora:"JK", cpf:"033.104.090-58", codCliente:53, cliente:"LOURENÇO MAINARDI MARTINS", imovel:"Antonie Bourdelle 301", codContrato:36, contrato:"1357", aluguelContrato:900},
+ {conta:795, locadora:"JK", cpf:"69691126087", codCliente:23, cliente:"MARCOS GUSTAVO DE ALMEIDA ROSA", imovel:"Francisco Goya Box 08", codContrato:9, contrato:"40710", aluguelContrato:146.33},
+ {conta:846, locadora:"JK", cpf:"80019252935", codCliente:58, cliente:"JÚLIA CASTAGNA HENRIQUE", imovel:"Dona Luiza 403", codContrato:44, contrato:"1471", aluguelContrato:950},
+];
+// Conta de Taxa Administrativa por imobiliária, conforme informado ("Neves" é a mesma
+// imobiliária que emite o relatório como "Casarão" — conta 20 pras duas).
+const LOCADORAS_SEED = [
+  {nome:"JK", contaTaxaAdm:17, keywords:["JK IMOVEIS","JK IMOBILIARIA"]},
+  {nome:"Cancian", contaTaxaAdm:18, keywords:["CANCIAN"]},
+  {nome:"Prisma", contaTaxaAdm:19, keywords:["MELO IMOVEIS","PRISMA IMOVEIS"]},
+  {nome:"Casarão", contaTaxaAdm:20, keywords:["CASARAO","NEVES"]},
+  {nome:"Toneto", contaTaxaAdm:21, keywords:["TONETO"]},
+  {nome:"Rio Branco", contaTaxaAdm:750, keywords:["FRANCINE","RIO BRANCO"]},
+];
+const LS_KEYS = {imoveis:"mantovani_imoveis", inquilinos:"mantovani_inquilinos", locadoras:"mantovani_locadoras", historico:"mantovani_historico"};
+function loadList(key, seed){ const raw = localStorage.getItem(key); if(raw) return JSON.parse(raw); const seeded = seed.map(x=>({...x})); localStorage.setItem(key, JSON.stringify(seeded)); return seeded; }
+function saveImoveis(list){ localStorage.setItem(LS_KEYS.imoveis, JSON.stringify(list)); }
+function saveInquilinos(list){ localStorage.setItem(LS_KEYS.inquilinos, JSON.stringify(list)); }
+function saveLocadoras(list){ localStorage.setItem(LS_KEYS.locadoras, JSON.stringify(list)); }
+function loadHistorico(){ const raw = localStorage.getItem(LS_KEYS.historico); return raw ? JSON.parse(raw) : {}; }
+function saveHistorico(h){ localStorage.setItem(LS_KEYS.historico, JSON.stringify(h)); }
+
+var imoveisDB = loadList(LS_KEYS.imoveis, IMOVEIS_SEED);
+var inquilinosDB = loadList(LS_KEYS.inquilinos, INQUILINOS_SEED);
+var locadorasDB = loadList(LS_KEYS.locadoras, LOCADORAS_SEED);
+var historicoDB = loadHistorico();
+
+function getImovelByConta(conta){ return imoveisDB.find(i=>Number(i.conta)===Number(conta)) || null; }
+function getInquilinoByConta(conta){ return inquilinosDB.find(i=>Number(i.conta)===Number(conta)) || null; }
+function getLocadora(nome){ return locadorasDB.find(l=>normalizeText(l.nome)===normalizeText(nome)) || null; }
+
+/* ---- Tabela: Imóveis ---- */
+function renderImoveisTable(){
+  const tbl = document.getElementById("imoveisTable");
+  tbl.innerHTML = `<thead><tr><th>Imóvel</th><th>Endereço</th><th>Locadora</th><th>Conta</th><th></th></tr></thead><tbody>` +
+    imoveisDB.map((r,i)=>`<tr>
+      <td class="cell"><input class="cell-input wide" value="${r.imovel||''}" onchange="updateImovel(${i},'imovel',this.value)"></td>
+      <td class="cell"><input class="cell-input wide" value="${r.endereco||''}" onchange="updateImovel(${i},'endereco',this.value)"></td>
+      <td class="cell"><input class="cell-input" value="${r.locadora||''}" onchange="updateImovel(${i},'locadora',this.value)"></td>
+      <td class="cell"><input class="cell-input num" style="width:70px" value="${r.conta??''}" onchange="updateImovel(${i},'conta',this.value)"></td>
+      <td><button class="btn small ghost" onclick="removeImovel(${i})">✕</button></td>
+    </tr>`).join("") + `</tbody>`;
+}
+function updateImovel(i, field, val){ imoveisDB[i][field] = (field==="conta") ? (val.trim()===""?null:Number(val)) : val; saveImoveis(imoveisDB); }
+function addImovelRow(){ imoveisDB.push({imovel:"",endereco:"",locadora:"",conta:null}); saveImoveis(imoveisDB); renderImoveisTable(); }
+function removeImovel(i){ imoveisDB.splice(i,1); saveImoveis(imoveisDB); renderImoveisTable(); }
+
+/* ---- Tabela: Inquilinos ---- */
+function renderInquilinosTable(){
+  const tbl = document.getElementById("inquilinosTable");
+  tbl.innerHTML = `<thead><tr><th>Conta</th><th>Locadora</th><th>CPF</th><th>Cód.Cliente</th><th>Cliente</th><th>Imóvel</th><th>Cód.Contrato</th><th>Contrato (imobiliária)</th><th>Aluguel Contrato</th><th></th></tr></thead><tbody>` +
+    inquilinosDB.map((r,i)=>`<tr>
+      <td class="cell"><input class="cell-input num" style="width:70px" value="${r.conta??''}" onchange="updateInquilino(${i},'conta',this.value)"></td>
+      <td class="cell"><input class="cell-input" value="${r.locadora||''}" onchange="updateInquilino(${i},'locadora',this.value)"></td>
+      <td class="cell"><input class="cell-input wide" value="${r.cpf||''}" onchange="updateInquilino(${i},'cpf',this.value)"></td>
+      <td class="cell"><input class="cell-input" style="width:70px" value="${r.codCliente??''}" onchange="updateInquilino(${i},'codCliente',this.value)"></td>
+      <td class="cell"><input class="cell-input wide" value="${r.cliente||''}" onchange="updateInquilino(${i},'cliente',this.value)"></td>
+      <td class="cell"><input class="cell-input wide" value="${r.imovel||''}" onchange="updateInquilino(${i},'imovel',this.value)"></td>
+      <td class="cell"><input class="cell-input" style="width:70px" value="${r.codContrato??''}" onchange="updateInquilino(${i},'codContrato',this.value)"></td>
+      <td class="cell"><input class="cell-input" style="width:80px" value="${r.contrato||''}" onchange="updateInquilino(${i},'contrato',this.value)"></td>
+      <td class="cell"><input class="cell-input num" value="${r.aluguelContrato??''}" onchange="updateInquilino(${i},'aluguelContrato',this.value)"></td>
+      <td><button class="btn small ghost" onclick="removeInquilino(${i})">✕</button></td>
+    </tr>`).join("") + `</tbody>`;
+}
+function updateInquilino(i, field, val){
+  if(field==="conta"||field==="codCliente"||field==="codContrato"){ inquilinosDB[i][field] = val.trim()===""?null:Number(val); }
+  else if(field==="aluguelContrato"){ inquilinosDB[i][field] = parseBRL(val); }
+  else { inquilinosDB[i][field] = val; }
+  saveInquilinos(inquilinosDB);
+}
+function addInquilinoRow(){ inquilinosDB.push({conta:null,locadora:"",cpf:"",codCliente:null,cliente:"",imovel:"",codContrato:null,contrato:"",aluguelContrato:null}); saveInquilinos(inquilinosDB); renderInquilinosTable(); }
+function removeInquilino(i){ inquilinosDB.splice(i,1); saveInquilinos(inquilinosDB); renderInquilinosTable(); }
+
+/* ---- Tabela: Locadoras ---- */
+function renderLocadorasTable(){
+  const tbl = document.getElementById("locadorasTable");
+  tbl.innerHTML = `<thead><tr><th>Locadora</th><th>Conta Taxa Adm.</th><th>Palavras-chave (separadas por vírgula)</th><th></th></tr></thead><tbody>` +
+    locadorasDB.map((r,i)=>`<tr>
+      <td class="cell"><input class="cell-input wide" value="${r.nome||''}" onchange="updateLocadora(${i},'nome',this.value)"></td>
+      <td class="cell"><input class="cell-input" style="width:80px" value="${r.contaTaxaAdm??''}" onchange="updateLocadora(${i},'contaTaxaAdm',this.value)"></td>
+      <td class="cell"><input class="cell-input wide" value="${(r.keywords||[]).join(', ')}" onchange="updateLocadoraKeywords(${i},this.value)"></td>
+      <td><button class="btn small ghost" onclick="removeLocadora(${i})">✕</button></td>
+    </tr>`).join("") + `</tbody>`;
+}
+function updateLocadora(i, field, val){ locadorasDB[i][field] = (field==="contaTaxaAdm") ? (val.trim()===""?null:Number(val)) : val; saveLocadoras(locadorasDB); }
+function updateLocadoraKeywords(i, val){ locadorasDB[i].keywords = val.split(",").map(s=>s.trim()).filter(Boolean); saveLocadoras(locadorasDB); }
+function removeLocadora(i){ locadorasDB.splice(i,1); saveLocadoras(locadorasDB); renderLocadorasTable(); }
+
+/* =========================================================================
+   CONTROLE DE IPTU — derivado de historicoDB (nada de cadastro manual)
+   ========================================================================= */
+function renderIptuTable(){
+  const totals = {}; // conta -> {pago747, ressarcido791}
+  Object.values(historicoDB).forEach(mes=>{
+    (mes.lancamentos||[]).forEach(r=>{
+      if(!r.conta) return;
+      if(!totals[r.conta]) totals[r.conta] = {pago747:0, ressarcido791:0};
+      totals[r.conta].pago747 += r.iptuPago747||0;
+      totals[r.conta].ressarcido791 += r.iptuRessarcido791||0;
+    });
+  });
+  const contas = Object.keys(totals).map(Number).sort((a,b)=>a-b);
+  const el = document.getElementById("iptuContent");
+  if(!contas.length){ el.innerHTML = `<div class="help">Nenhum lançamento processado ainda — vá em <b>Lançamentos do mês</b> e clique em Processar pelo menos uma vez.</div>`; return; }
+  let html = `<div class="table-wrap"><table class="preview"><thead><tr><th>Conta</th><th>Imóvel</th><th>IPTU pago (747)</th><th>IPTU ressarcido (791)</th><th>Saldo a ressarcir</th></tr></thead><tbody>`;
+  contas.forEach(conta=>{
+    const t = totals[conta];
+    const imv = getImovelByConta(conta);
+    const saldo = t.pago747 - t.ressarcido791;
+    html += `<tr class="${saldo>0.009?'flag':''}">
+      <td>${conta}</td><td>${imv?imv.imovel:'(imóvel não cadastrado)'}</td>
+      <td class="num">R$ ${fmtBRL(t.pago747)}</td>
+      <td class="num">R$ ${fmtBRL(t.ressarcido791)}</td>
+      <td class="num">R$ ${fmtBRL(saldo)}</td>
+    </tr>`;
+  });
+  html += `</tbody></table></div>`;
+  el.innerHTML = html;
+}
+
+/* =========================================================================
+   RESOLUÇÃO DE INQUILINO/IMÓVEL — várias estratégias, na ordem mais confiável
+   ========================================================================= */
+function cpfDigits(s){ const d = onlyDigits(s); return d ? d.padStart(11,"0") : ""; }
+function resolveInquilino({cpf, contrato, nome, imovelHint}){
+  if(cpf){
+    const cd = cpfDigits(cpf);
+    const m = inquilinosDB.find(i=>i.cpf && cpfDigits(i.cpf)===cd);
+    if(m) return m;
+  }
+  if(contrato){
+    const c = String(contrato).trim();
+    const m = inquilinosDB.find(i=>i.contrato && String(i.contrato).trim()===c);
+    if(m) return m;
+  }
+  if(nome){
+    const n = normalizeText(nome);
+    let m = inquilinosDB.find(i=>normalizeText(i.cliente)===n);
+    if(m) return m;
+    m = inquilinosDB.find(i=>i.cliente && (normalizeText(i.cliente).includes(n) || n.includes(normalizeText(i.cliente))) && i.cliente!=="Desocupado");
+    if(m) return m;
+  }
+  if(imovelHint){
+    const h = normalizeText(imovelHint);
+    const m = inquilinosDB.find(i=>i.imovel && (normalizeText(i.imovel).includes(h) || h.includes(normalizeText(i.imovel))));
+    if(m) return m;
+  }
+  // Último recurso: formatos soltos tipo "BRINCO DE PEROLA WAGNER" (endereço + 1º nome do
+  // inquilino grudados, sem separador) — usa a última palavra como candidato a 1º nome.
+  // Não tenta casar só pelo nome da rua/imóvel: várias ruas têm mais de um imóvel nosso
+  // (ex. "Francisco Goya" tem 5), então isso daria falso positivo — melhor deixar sem
+  // achar e cair na revisão manual do que casar errado.
+  if(nome){
+    const tokens = normalizeText(nome).split(/\s+/).filter(Boolean);
+    const lastTok = tokens[tokens.length-1];
+    if(lastTok && lastTok.length>2){
+      const m = inquilinosDB.find(i=>i.cliente && i.cliente!=="Desocupado" && normalizeText(i.cliente).split(/\s+/)[0]===lastTok);
+      if(m) return m;
+    }
+  }
+  return null;
+}
+
+/* =========================================================================
+   CLASSIFICAÇÃO DE ITEM → conta / coluna da tela de Lançamentos
+   ========================================================================= */
+function classificarItem(descRaw, valorComSinal){
+  const d = normalizeText(descRaw);
+  if(/ALUGUEL/.test(d)) return "aluguel";
+  // Qualquer "Bonificação ..." (Reajuste, Churrasqueira etc.) é desconto recorrente sobre o
+  // aluguel contratado — confirmado batendo com o Valor Contábil já usado nas notas fiscais
+  // anteriores (ex. Celina: Aluguel 1.104,57 - Bonificação 100,00 = 1.004,57 igual ao histórico).
+  if(/BONIFICA/.test(d)) return "desconto381";
+  if(/FUNDO DE RESERVA/.test(d)) return "fundoreserva778";
+  if(/IPTU/.test(d)) return valorComSinal>=0 ? "iptuRessarcido791" : "iptuPago747";
+  if(/CHAM\.?\s*(ADA)?\.?\s*EXTRA/.test(d) || /CONDOMIN/.test(d)) return "cond341";
+  if(/TAXA\s*(DE)?\s*ADMINISTRA/.test(d) || /HONOR[AÁ]RIOS/.test(d)) return "taxaAdm";
+  if(/MULTA/.test(d) || /\bJUROS\b/.test(d)) return "juros394";
+  if(/TARIFA/.test(d) || /TAXAS? TRANSF/.test(d) || /TAXA BANC/.test(d)) return "despBancaria384";
+  if(/MANUTEN|CONSERT|REPARO/.test(d)) return "manutencao332";
+  if(/SEGURO/.test(d)) return "seguro345";
+  return "desconhecido";
+}
+
+/* =========================================================================
+   PARSER — Contas a Receber (Domínio)
+   ========================================================================= */
+function parseContasReceber(lines){
+  const parcelas = [];
+  let curCliente = null;
+  const CLI_RE = /^Cliente:\s*(\d+)\s*-\s*(.+)$/;
+  const PARC_RE = /^(\d+)\s+(\d{2}\/\d{2}\/\d{4})\s+(\d{2}\/\d{2}\/\d{4})\s+(\d{2}\/\d{2}\/\d{4})\s+([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)([A-Za-zÀ-ÿ]+)$/;
+  lines.forEach(line=>{
+    const cm = line.match(CLI_RE);
+    if(cm){ curCliente = {codCliente:parseInt(cm[1]), nome:cm[2].trim()}; return; }
+    if(/^Sub Total:/.test(line) || /^Total Geral:/.test(line)) return;
+    const pm = line.match(PARC_RE);
+    if(pm && curCliente){
+      parcelas.push({
+        codCliente: curCliente.codCliente, cliente: curCliente.nome,
+        documento: pm[1], vencimento: brDateToParts(pm[4]),
+        valorParcela: parseBRL(pm[5]), situacao: pm[13].trim(),
+      });
+    }
+  });
+  return parcelas;
+}
+
+/* =========================================================================
+   PARSER — Extrato bancário Unicred (mesma lógica do Lançamentos Holdings)
+   ========================================================================= */
+const UNICRED_ANCHOR_RE = /^(\d{2}\/\d{2}\/\d{4})\s*(.*?)\s*(-?\s?R\$\s?[\d.]+,\d{2})\s+(-?\s?R\$\s?[\d.]+,\d{2})$/;
+function parseUnicredCheckingBlocks(lines){
+  const startIdx = lines.findIndex(l=>/^Data\s+Lan[çc]amentos\s+Valor/i.test(l));
+  let endIdx = -1;
+  for(let i=(startIdx<0?0:startIdx)+1;i<lines.length;i++){ if(/Saldo no final do per[íi]odo/i.test(lines[i])){ endIdx = i; break; } }
+  const region = lines.slice(startIdx<0?0:startIdx+1, endIdx<0?lines.length:endIdx);
+  const out = [];
+  let before = [];
+  for(let i=0;i<region.length;i++){
+    const m = region[i].match(UNICRED_ANCHOR_RE);
+    if(!m){ before.push(region[i]); continue; }
+    let desc = (before.join(" ") + " " + m[2]).replace(/\s+/g," ").trim();
+    before = [];
+    let opens = (desc.match(/\(/g)||[]).length, closes = (desc.match(/\)/g)||[]).length;
+    let j = i+1;
+    while(opens>closes && j<region.length && !UNICRED_ANCHOR_RE.test(region[j])){
+      desc += " " + region[j];
+      opens += (region[j].match(/\(/g)||[]).length;
+      closes += (region[j].match(/\)/g)||[]).length;
+      j++;
+    }
+    i = j-1;
+    out.push({ data: brDateToParts(m[1]), descricao: desc.replace(/\s+/g," ").trim(), valor: parseBRL(m[3]) });
+  }
+  return out;
+}
+
+/* =========================================================================
+   PARSER — JK
+   ========================================================================= */
+function parseRepasseJK(lines){
+  const repasses = []; // {ref, nome, itens:[{desc,valor}], flagAtraso, semEmissao}
+  let cur = null, section = "contratos";
+  const CONTRATO_RE = /^Contrato:\s*(\S+)\s+Im[oó]vel:\s*(\S+)\s+Descri[cç][aã]o/i;
+  const ITEM_COD_RE = /(\d{3})\s*-\s*(.+?)\s+(-?[\d.]+,\d{2})\s*$/;
+  const TAXA_ADM_RE = /TAXA DE ADMINISTRA[ÇC][ÃA]O\s+(-?[\d.]+,\d{2})/i;
+  const AVULSO_IM_RE = /^(\d{4})\s*-\s*(.+)$/;
+  // Códigos avulsos conhecidos (Condomínio, PGTO chamada extra, REC. MULTA) — restrito a uma
+  // lista fechada pra não confundir com números de endereço tipo "156 - Ap301".
+  const AVULSO_COD_RE = /(100|976|994)\s*-\s*([A-Za-zÀ-ÿ][^0-9]*)/;
+  const AVULSO_VAL_RE = /(-?[\d.]+,\d{2})/;
+  const avulsoImoveis = [], avulsoCodigos = [], avulsoValores = [];
+  lines.forEach(line=>{
+    if(/^Lan[çc]amentos Avulsos$/i.test(line)){ section = "avulsos"; return; }
+    if(/^Resumo$/i.test(line)){ section = "fim"; return; }
+    if(section === "contratos"){
+      const cm = line.match(CONTRATO_RE);
+      if(cm){ cur = {ref:"jk-contrato-"+cm[1], contrato:cm[1], imovelJK:cm[2], nome:"", itens:[]}; repasses.push(cur); return; }
+      if(!cur) return;
+      const im = line.match(/INQUILINO:\s*(.+?)(?=\s+\d{3}\s*-|\s+TAXA DE ADMINISTRA|$)/i);
+      if(im) cur.nome = im[1].trim();
+      if(/CONTRATO EM ATRASO/i.test(line)) cur.emAtraso = true;
+      if(/SEM EMISS[ÃA]O/i.test(line)) cur.semEmissao = true;
+      const tm = line.match(TAXA_ADM_RE);
+      if(tm){ cur.itens.push({desc:"TAXA DE ADMINISTRAÇÃO", valor:parseBRL(tm[1])}); }
+      const itm = line.match(ITEM_COD_RE);
+      if(itm){ cur.itens.push({desc:itm[2].trim(), valor:parseBRL(itm[3])}); }
+    } else if(section === "avulsos"){
+      // Layout inconsistente entre linhas (código/descrição e valor às vezes ficam em
+      // linhas separadas, em ordens diferentes) — junta os 3 tipos de token na ordem em
+      // que aparecem no bloco e casa por posição (sempre 1 imóvel : 1 código : 1 valor).
+      const aim = line.match(AVULSO_IM_RE);
+      if(aim) avulsoImoveis.push(aim[1]);
+      const acm = line.match(AVULSO_COD_RE);
+      if(acm) avulsoCodigos.push(acm[2].trim());
+      const avm = line.match(AVULSO_VAL_RE);
+      if(avm) avulsoValores.push(parseBRL(avm[1]));
+    }
+  });
+  avulsoImoveis.forEach((imv,i)=>{
+    if(avulsoValores[i]==null) return;
+    repasses.push({ref:"jk-avulso-"+imv+"-"+i, contrato:null, imovelJK:imv, nome:"", itens:[{desc:avulsoCodigos[i]||"Avulso", valor:avulsoValores[i]}], avulso:true});
+  });
+  return repasses.filter(r=>r.itens.length>0);
+}
+
+/* =========================================================================
+   PARSER — Prisma / Melo Imóveis
+   ========================================================================= */
+function parsePrisma(lines){
+  const repasses = [];
+  let cur = null;
+  const COD_RE = /Contrato:(\d+)/;
+  const NOME_RE = /\d+,\d+%\s+(.+)$/;
+  const ITEM_RE = /^(.+?)\s+(-?[\d.,]+)([CD])(?:\s+[\d.,]+\s*[CD])?$/;
+  const IMOVEL_START_RE = /^\d+\s+(.+),\s*\d/;
+  lines.forEach(line=>{
+    if(/^Resumo das Programa/i.test(line) || /^Total por lan[çc]amento/i.test(line)) { cur = null; return; }
+    const ist = line.match(IMOVEL_START_RE);
+    if(ist){ cur = {ref:"prisma-"+repasses.length, contrato:null, nome:"", itens:[]}; repasses.push(cur); }
+    if(!cur) return;
+    const cm = line.match(COD_RE);
+    if(cm) cur.contrato = cm[1];
+    const nm = line.match(NOME_RE);
+    if(nm) cur.nome = nm[1].trim();
+    if(/^Declarantes|^Total do Im[oó]vel|^ENDERE|^Benefici|^Titular|^Banco:|^Conta:|^Hist[oó]rico Valor/i.test(line)) return;
+    const itm = line.match(ITEM_RE);
+    if(itm){
+      const valor = parseBRL(itm[2]) * (itm[3]==="D" ? -1 : 1);
+      cur.itens.push({desc:itm[1].trim(), valor});
+    }
+  });
+  return repasses.filter(r=>r.itens.length>0);
+}
+
+/* =========================================================================
+   PARSER — Toneto
+   ========================================================================= */
+function parseToneto(lines){
+  const repasses = [];
+  let cur = null, done = false;
+  const CONTRATO_RE = /^Contrato\s+(\S+)\s*-\s*(.+)$/;
+  const ITEM_RE = /^(Aluguel|IPTU|Fundo de Reserva.*|Taxa de administra[cç][aã]o|Chamada Extra.*|Taxas? transf.*)\s*-?\s*(.*?)\s+(-?[\d.,]+)$/i;
+  lines.forEach(line=>{
+    if(done) return;
+    if(/^Total do extrato/i.test(line)){ done = true; return; }
+    const cm = line.match(CONTRATO_RE);
+    if(cm){ cur = {ref:"toneto-"+cm[1], contrato:cm[1], nome:"", imovelDesc:cm[2], itens:[]}; repasses.push(cur); return; }
+    if(!cur) return;
+    if(/^Total para repasse/i.test(line)) return;
+    const itm = line.match(ITEM_RE);
+    if(itm){ cur.itens.push({desc:itm[1].trim(), valor:parseBRL(itm[3])}); }
+  });
+  return repasses.filter(r=>r.itens.length>0);
+}
+
+/* =========================================================================
+   PARSER — Cancian
+   ========================================================================= */
+function parseCancian(lines){
+  const cur = {ref:"cancian-1", contrato:null, cpf:null, nome:"", itens:[]};
+  const IMOVEL_RE = /^Im[oó]vel:\s*(\d+)\s*-\s*(.+)$/i;
+  const CONTRATO_RE = /^Contrato:\s*(\d+)/i;
+  const LOCATARIO_RE = /^Locat[aá]rio:\s*(\d+)\s*-\s*(.+?)\s*-\s*CPF\/CNPJ:\s*([\d.\-\/]+)/i;
+  const ITEM_RE = /^(Aluguel|Taxas? transf[eê]r[eê]ncias banc[aá]rias|Iptu|Taxa administra[cç][aã]o|Multa|Juros)\s*(.*?)\s+(-?[\d.,]+)$/i;
+  lines.forEach(line=>{
+    if(/^Forma quita[çc][ãa]o/i.test(line)) return;
+    const im = line.match(IMOVEL_RE); if(im) cur.imovelDesc = im[2];
+    const cm = line.match(CONTRATO_RE); if(cm) cur.contrato = cm[1];
+    const lo = line.match(LOCATARIO_RE); if(lo){ cur.cpfCodCliente = lo[1]; cur.nome = lo[2].trim(); cur.cpf = lo[3]; }
+    const itm = line.match(ITEM_RE);
+    if(itm){ cur.itens.push({desc:itm[1].trim(), valor:parseBRL(itm[3])}); }
+  });
+  return cur.itens.length ? [cur] : [];
+}
+
+/* =========================================================================
+   PARSER — Casarão (letras de rótulo saem duplicadas no PDF — só nas linhas
+   de cabeçalho/rótulo, as linhas de dado já vêm limpas)
+   ========================================================================= */
+function undoubleLetters(s){ return s.replace(/([A-Za-zÀ-ÿ])\1/g, "$1"); }
+function parseCasarao(lines){
+  const repasses = [];
+  // Itens que aparecem ANTES do primeiro bloco "Código:" (ex. tarifa de remessa cobrada no
+  // nível do repasse inteiro, não de um imóvel específico) ficam aqui e são mesclados no
+  // primeiro imóvel do relatório quando houver só 1 (o caso comum) — com mais de 1 imóvel
+  // no mesmo PDF, viram um item avulso não classificado (flagado pra revisão manual).
+  const geral = {ref:"casarao-geral", contrato:null, nome:"", itens:[]};
+  let cur = null, done = false;
+  const COD_RE = /^C[oó]digo:+\s*(\d+)\s+Endere[çc]o:+/i;
+  const LOC_RE = /^Locat[aá]rio:+\s*(.+?)\s*-\s*CPF\/*CNPJ:+\s*(\S+)/i;
+  const ITEM_RE = /^(\d{2}\/\d{2}\/\d{4})\s+(\d{2}\/\d{4})\s+(.+?)\s+R\$\s*(-?[\d.,]+)\s+R\$\s*(-?[\d.,]+)(?:\s+R\$\s*(-?[\d.,]+))?$/;
+  lines.forEach(raw=>{
+    if(/^RESUMO POR TAXAS/i.test(undoubleLetters(raw))){ done = true; return; }
+    if(done) return;
+    const line = undoubleLetters(raw);
+    const cm = line.match(COD_RE);
+    if(cm){ cur = {ref:"casarao-"+cm[1], contrato:cm[1], nome:"", itens:[]}; repasses.push(cur); return; }
+    const lm = line.match(LOC_RE);
+    if(lm && cur){ cur.nome = lm[1].trim(); cur.cpf = lm[2]; return; }
+    const itm = raw.match(ITEM_RE); // linha de item já vem limpa — usa a linha crua
+    if(itm){
+      const debito = parseBRL(itm[4])||0, credito = parseBRL(itm[5])||0;
+      const valor = credito - debito; // sinal único: positivo=crédito, negativo=débito
+      (cur||geral).itens.push({desc:itm[3].trim(), valor, _debito:debito, _credito:credito});
+    }
+  });
+  if(geral.itens.length){
+    if(repasses.length===1) repasses[0].itens.push(...geral.itens);
+    else repasses.push(geral);
+  }
+  // pares estorno: mesmo histórico com débito de um lado batendo o crédito do outro → descarta os 2
+  repasses.forEach(r=>{
+    const kept = [];
+    const used = new Array(r.itens.length).fill(false);
+    for(let i=0;i<r.itens.length;i++){
+      if(used[i]) continue;
+      let pairIdx = -1;
+      for(let j=i+1;j<r.itens.length;j++){
+        if(used[j]) continue;
+        if(r.itens[j].desc===r.itens[i].desc && Math.abs(r.itens[j]._debito-r.itens[i]._credito)<0.005 && Math.abs(r.itens[j]._credito-r.itens[i]._debito)<0.005 && (r.itens[i]._debito>0||r.itens[i]._credito>0)){
+          pairIdx = j; break;
+        }
+      }
+      if(pairIdx>=0){ used[i]=true; used[pairIdx]=true; }
+      else kept.push(r.itens[i]);
+    }
+    r.itens = kept;
+  });
+  return repasses.filter(r=>r.itens.length>0);
+}
+
+/* =========================================================================
+   PARSER — Rio Branco (fallback manual quando não vier o PDF no mês)
+   ========================================================================= */
+function parseRioBranco(lines){
+  const out = [];
+  const ROW_RE = /^(\d+)\s+(.+?)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)$/;
+  lines.forEach(line=>{
+    if(/^TOTAL/i.test(line)) return;
+    const m = line.match(ROW_RE);
+    if(m){
+      out.push({
+        ref:"riobranco-"+m[1], contrato:null, imovelDesc:m[2], nome:m[2],
+        itens:[
+          {desc:"Aluguel", valor:parseFloat(m[3])},
+          {desc:"IPTU", valor:parseFloat(m[4])},
+          {desc:"Taxa de Administração", valor:-parseFloat(m[6])},
+          {desc:"Condomínio", valor:-(parseFloat(m[7]))},
+        ].filter(i=>i.valor!==0),
+        totalDep: parseFloat(m[9]),
+      });
+    }
+  });
+  return out;
+}
+
+/* =========================================================================
+   MONTAGEM DE LINHA (um "aluguel recebido" = uma linha da tela de Lançamentos)
+   ========================================================================= */
+function buildRow(repasse, inq, dataRecebimento){
+  const row = {
+    _repasseRef: repasse.ref, locadora: repasse._locadoraNome,
+    conta: inq?inq.conta:null, cliente: inq?inq.cliente:(repasse.nome||"(não identificado)"),
+    imovel: inq?inq.imovel:(repasse.imovelDesc||""),
+    aluguelContrato:0, descontoReajuste:0, comp:"",
+    taxaAdm:0, fundoReserva:0, iptuRessarcido791:0, iptuPago747:0, condChamExtra:0,
+    jurosRec:0, despBancaria:0, manutencao:0, seguro:0,
+    valorLiquido:0, dataRecebimento, observacao:[], flag: !inq,
+  };
+  repasse.itens.forEach(it=>{
+    const tipo = classificarItem(it.desc, it.valor);
+    row.valorLiquido += it.valor;
+    if(tipo==="aluguel"){
+      row.aluguelContrato += it.valor;
+      const cm = it.desc.match(/(\d{2}\/\d{4})/); if(cm) row.comp = cm[1];
+    }
+    else if(tipo==="desconto381") row.descontoReajuste += Math.abs(it.valor);
+    else if(tipo==="fundoreserva778") row.fundoReserva += Math.abs(it.valor);
+    else if(tipo==="iptuRessarcido791") row.iptuRessarcido791 += Math.abs(it.valor);
+    else if(tipo==="iptuPago747") row.iptuPago747 += Math.abs(it.valor);
+    else if(tipo==="cond341") row.condChamExtra += Math.abs(it.valor);
+    else if(tipo==="taxaAdm") row.taxaAdm += Math.abs(it.valor);
+    else if(tipo==="juros394") row.jurosRec += it.valor;
+    else if(tipo==="despBancaria384") row.despBancaria += Math.abs(it.valor);
+    else if(tipo==="manutencao332") row.manutencao += Math.abs(it.valor);
+    else if(tipo==="seguro345") row.seguro += Math.abs(it.valor);
+    else { row.observacao.push(`${it.desc}: ${fmtBRL(it.valor)}`); row.flag = true; }
+  });
+  if(!row.aluguelContrato && inq && inq.aluguelContrato) row.aluguelContrato = inq.aluguelContrato;
+  row.valorBruto = row.aluguelContrato - row.descontoReajuste;
+  row.observacao = row.observacao.join("; ");
+  if(!dataRecebimento) row.flag = true;
+  return row;
+}
+
+/* =========================================================================
+   TELA DE LANÇAMENTOS — dropzones, estado, pipeline de processamento
+   ========================================================================= */
+const LANC_DOCS = [
+  {key:"extrato", label:"Extrato Bancário Unicred", desc:"Extrato do mês (PDF) — obrigatório", multiple:false, required:true},
+  {key:"contasReceber", label:"Contas a Receber (Domínio)", desc:"Opcional, mas necessário pra achar nota/vencimento na Baixa de Serviços", multiple:false},
+  {key:"JK", label:"Repasse JK", desc:"Pode anexar mais de um PDF (ex. atrasados pagos à parte)", multiple:true},
+  {key:"Prisma", label:"Repasse Prisma / Melo", desc:"", multiple:true},
+  {key:"Toneto", label:"Repasse Toneto", desc:"", multiple:true},
+  {key:"Cancian", label:"Repasse Cancian", desc:"", multiple:true},
+  {key:"Casarão", label:"Repasse Casarão", desc:"", multiple:true},
+  {key:"Rio Branco", label:"Repasse Rio Branco", desc:"", multiple:true},
+];
+let lancArquivos = {};
+function resetLancState(){
+  lancArquivos = {extrato:null, contasReceber:null, JK:[], Prisma:[], Toneto:[], Cancian:[], "Casarão":[], "Rio Branco":[]};
+  lancamentosRows = []; revisaoInquilino = []; parcelasCR = [];
+  document.getElementById("boxLancamentos").classList.add("hidden");
+  document.getElementById("boxExportar").classList.add("hidden");
+  document.getElementById("boxRevisao").classList.add("hidden");
+  document.getElementById("lancStatus").classList.add("hidden");
+}
+function renderDocGrid(){
+  const grid = document.getElementById("lancDocGrid");
+  grid.innerHTML = LANC_DOCS.map(d=>`
+    <div class="field">
+      <label>${d.label}${d.required?' *':''}</label>
+      <div class="dropzone" id="ldz_${cssKey(d.key)}" style="padding:16px;">
+        <div class="big">${d.multiple?"Arraste os PDFs aqui":"Arraste o PDF aqui"}</div>
+        <div class="small">${d.desc}</div>
+        <input type="file" id="lfi_${cssKey(d.key)}" accept="application/pdf" ${d.multiple?"multiple":""}>
+      </div>
+    </div>`).join("");
+  LANC_DOCS.forEach(d=> wireDropzone(`ldz_${cssKey(d.key)}`, `lfi_${cssKey(d.key)}`, (files, drop)=>{
+    if(d.multiple){ lancArquivos[d.key] = Array.from(files); markDropDone(drop, lancArquivos[d.key].map(f=>f.name).join(", ")); }
+    else { lancArquivos[d.key] = files[0]; markDropDone(drop, files[0].name); }
+  }));
+}
+function cssKey(k){ return k.replace(/[^a-zA-Z0-9]/g,""); }
+function wireDropzone(dropId, inputId, onFiles){
+  const drop = document.getElementById(dropId);
+  const input = document.getElementById(inputId);
+  drop.addEventListener("click", ()=>input.click());
+  input.addEventListener("change", ()=>{ if(input.files.length) onFiles(input.files, drop); });
+  drop.addEventListener("dragover", e=>{ e.preventDefault(); drop.classList.add("drag"); });
+  drop.addEventListener("dragleave", ()=> drop.classList.remove("drag"));
+  drop.addEventListener("drop", e=>{
+    e.preventDefault(); drop.classList.remove("drag");
+    if(e.dataTransfer.files.length) onFiles(e.dataTransfer.files, drop);
+  });
+}
+function markDropDone(drop, label){ drop.classList.add("done"); drop.querySelector(".big").textContent = "✓ " + label; }
+
+var lancamentosRows = [];
+var revisaoInquilino = [];
+var parcelasCR = [];
+
+var REPASSE_PARSERS = {JK:parseRepasseJK, Prisma:parsePrisma, Toneto:parseToneto, Cancian:parseCancian, "Casarão":parseCasarao, "Rio Branco":parseRioBranco};
+
+var ultimosTxns = [];
+async function processarLancamentos(){
+  const status = document.getElementById("lancStatus");
+  status.classList.remove("hidden","err"); status.textContent = "Processando...";
+  lancamentosRows = []; revisaoInquilino = []; parcelasCR = [];
+  try{
+    if(!lancArquivos.extrato){ throw new Error("Anexe o extrato bancário — é obrigatório pra achar a data de recebimento."); }
+    const extratoLines = (await extractPdfAllLines(lancArquivos.extrato)).flat();
+    const txns = parseUnicredCheckingBlocks(extratoLines);
+    ultimosTxns = txns;
+
+    if(lancArquivos.contasReceber){
+      const crLines = (await extractPdfAllLines(lancArquivos.contasReceber)).flat();
+      parcelasCR = parseContasReceber(crLines);
+    }
+
+    for(const locNome of Object.keys(REPASSE_PARSERS)){
+      const files = lancArquivos[locNome] || [];
+      if(!files.length) continue;
+      const loc = getLocadora(locNome);
+      for(const file of files){
+        const lines = (await extractPdfAllLines(file)).flat();
+        const repasses = REPASSE_PARSERS[locNome](lines);
+        repasses.forEach(r=>r._locadoraNome = locNome);
+        if(locNome === "Rio Branco"){
+          repasses.forEach(r=>{
+            const txn = txns.find(t=>!t._used && loc && loc.keywords.some(k=>normalizeText(t.descricao).includes(normalizeText(k))) && Math.abs(Math.abs(t.valor)-r.totalDep)<0.01);
+            if(txn) txn._used = true;
+            finalizeRepasse(r, txn?txn.data:null);
+          });
+        } else {
+          const pdfTotal = repasses.reduce((s,r)=>s+r.itens.reduce((s2,i)=>s2+i.valor,0),0);
+          const txn = txns.find(t=>!t._used && loc && loc.keywords.some(k=>normalizeText(t.descricao).includes(normalizeText(k))) && Math.abs(Math.abs(t.valor)-pdfTotal)<0.01);
+          if(txn) txn._used = true;
+          repasses.forEach(r=>finalizeRepasse(r, txn?txn.data:null));
+        }
+      }
+    }
+    status.classList.add("hidden");
+    renderRevisaoInquilino();
+    renderLancTable();
+    autoSalvarHistorico();
+  }catch(err){
+    status.classList.add("err"); status.textContent = "Erro: " + err.message;
+    console.error(err);
+  }
+}
+function finalizeRepasse(r, data){
+  const inq = resolveInquilino({cpf:r.cpf, contrato:r.contrato, nome:r.nome, imovelHint:r.imovelDesc});
+  const row = buildRow(r, inq, data);
+  lancamentosRows.push(row);
+  if(!inq) revisaoInquilino.push(row);
+}
+
+/* ---- Revisão: inquilino não identificado ---- */
+function renderRevisaoInquilino(){
+  const box = document.getElementById("boxRevisao");
+  if(!revisaoInquilino.length){ box.classList.add("hidden"); box.innerHTML=""; return; }
+  box.classList.remove("hidden");
+  const options = inquilinosDB.map(i=>`<option value="${i.conta}">${i.cliente} — ${i.imovel} (conta ${i.conta})</option>`).join("");
+  box.innerHTML = `<div class="card">
+    <div class="section-title">⚠ Inquilino/imóvel não identificado — escolha manualmente</div>
+    <div class="help">A ferramenta não conseguiu casar essas linhas com o cadastro (por CPF, contrato ou nome). Escolha o inquilino certo pra completar Conta/Imóvel; se for um inquilino novo, cadastre-o primeiro na tela de Inquilinos.</div>
+    <div class="table-wrap"><table class="preview"><thead><tr><th>Locadora</th><th>Nome no relatório</th><th>Imóvel no relatório</th><th>Escolher inquilino</th></tr></thead><tbody>
+      ${revisaoInquilino.map((row,i)=>`<tr>
+        <td>${row.locadora}</td><td>${row.cliente}</td><td>${row.imovel}</td>
+        <td class="cell"><select class="mini" onchange="resolverRevisaoInquilino(${i}, this.value)"><option value="">— selecionar —</option>${options}</select></td>
+      </tr>`).join("")}
+    </tbody></table></div>
+  </div>`;
+}
+function resolverRevisaoInquilino(i, contaStr){
+  const row = revisaoInquilino[i];
+  const inq = inquilinosDB.find(x=>String(x.conta)===String(contaStr));
+  if(!inq) return;
+  row.conta = inq.conta; row.cliente = inq.cliente; row.imovel = inq.imovel;
+  if(!row.aluguelContrato && inq.aluguelContrato) row.aluguelContrato = inq.aluguelContrato;
+  row.flag = !row.dataRecebimento;
+  revisaoInquilino.splice(i,1);
+  renderRevisaoInquilino();
+  renderLancTable();
+}
+
+/* ---- Tabela principal de Lançamentos ---- */
+function renderLancTable(){
+  const box = document.getElementById("boxLancamentos");
+  box.classList.toggle("hidden", lancamentosRows.length===0);
+  if(!lancamentosRows.length){ document.getElementById("boxExportar").classList.add("hidden"); return; }
+  const totalLiquido = lancamentosRows.reduce((s,r)=>s+(r.valorLiquido||0),0);
+  let html = `<div class="summary-row">
+    <div class="item"><div class="k">Linhas</div><div class="v">${lancamentosRows.length}</div></div>
+    <div class="item"><div class="k">Total Valor Líquido</div><div class="v">R$ ${fmtBRL(totalLiquido)}</div></div>
+  </div>
+  <div class="table-wrap"><table class="preview"><thead><tr>
+    <th>Locadora</th><th>Cliente</th><th>Imóvel</th><th>Aluguel Contrato</th><th>Desc.Reajuste</th><th>Comp.</th><th>Valor Bruto</th>
+    <th>Taxa Adm</th><th>Fundo Reserva</th><th>IPTU (791)</th><th>IPTU (747)</th><th>Cond./ChExtra</th><th>Juros Rec.</th>
+    <th>Desp.Banc.</th><th>Manutenção</th><th>Seguro</th><th>Valor Líquido</th><th>Data Receb.</th><th>PIS</th><th>COFINS</th><th>Observação</th><th></th>
+  </tr></thead><tbody>`;
+  lancamentosRows.forEach((r,i)=>{
+    const pis = (r.valorBruto||0) * 0.0065, cofins = (r.valorBruto||0) * 0.03;
+    html += `<tr class="${r.flag?'flag':''}">
+      <td>${r.locadora||""}</td>
+      <td class="cell"><input class="cell-input wide" value="${r.cliente||''}" onchange="lancamentosRows[${i}].cliente=this.value"></td>
+      <td class="cell"><input class="cell-input wide" value="${r.imovel||''}" onchange="lancamentosRows[${i}].imovel=this.value"></td>
+      <td class="cell"><input class="cell-input num" value="${fmtBRL(r.aluguelContrato)}" onchange="updateLancNum(${i},'aluguelContrato',this.value)"></td>
+      <td class="cell"><input class="cell-input num" value="${fmtBRL(r.descontoReajuste)}" onchange="updateLancNum(${i},'descontoReajuste',this.value)"></td>
+      <td class="cell"><input class="cell-input" style="width:60px" value="${r.comp||''}" onchange="lancamentosRows[${i}].comp=this.value"></td>
+      <td class="num">R$ ${fmtBRL(r.valorBruto)}</td>
+      <td class="cell"><input class="cell-input num" value="${fmtBRL(r.taxaAdm)}" onchange="updateLancNum(${i},'taxaAdm',this.value)"></td>
+      <td class="cell"><input class="cell-input num" value="${fmtBRL(r.fundoReserva)}" onchange="updateLancNum(${i},'fundoReserva',this.value)"></td>
+      <td class="cell"><input class="cell-input num" value="${fmtBRL(r.iptuRessarcido791)}" onchange="updateLancNum(${i},'iptuRessarcido791',this.value)"></td>
+      <td class="cell"><input class="cell-input num" value="${fmtBRL(r.iptuPago747)}" onchange="updateLancNum(${i},'iptuPago747',this.value)"></td>
+      <td class="cell"><input class="cell-input num" value="${fmtBRL(r.condChamExtra)}" onchange="updateLancNum(${i},'condChamExtra',this.value)"></td>
+      <td class="cell"><input class="cell-input num" value="${fmtBRL(r.jurosRec)}" onchange="updateLancNum(${i},'jurosRec',this.value)"></td>
+      <td class="cell"><input class="cell-input num" value="${fmtBRL(r.despBancaria)}" onchange="updateLancNum(${i},'despBancaria',this.value)"></td>
+      <td class="cell"><input class="cell-input num" value="${fmtBRL(r.manutencao)}" onchange="updateLancNum(${i},'manutencao',this.value)"></td>
+      <td class="cell"><input class="cell-input num" value="${fmtBRL(r.seguro)}" onchange="updateLancNum(${i},'seguro',this.value)"></td>
+      <td class="cell"><input class="cell-input num" value="${fmtBRL(r.valorLiquido)}" onchange="updateLancNum(${i},'valorLiquido',this.value)"></td>
+      <td class="cell"><input class="cell-input" style="width:80px" value="${r.dataRecebimento?fmtDateBR(r.dataRecebimento):''}" onchange="lancamentosRows[${i}].dataRecebimento=brDateToParts(this.value); renderLancTable();"></td>
+      <td class="num">R$ ${fmtBRL(pis)}</td>
+      <td class="num">R$ ${fmtBRL(cofins)}</td>
+      <td class="cell"><input class="cell-input wide" value="${r.observacao||''}" onchange="lancamentosRows[${i}].observacao=this.value"></td>
+      <td><button class="btn small ghost" onclick="lancamentosRows.splice(${i},1);renderLancTable();">✕</button></td>
+    </tr>`;
+  });
+  html += `</tbody></table></div>`;
+  document.getElementById("lancamentosResult").innerHTML = html;
+  document.getElementById("boxExportar").classList.remove("hidden");
+}
+function updateLancNum(i, field, val){ lancamentosRows[i][field] = parseBRL(val)||0; if(field==="aluguelContrato"||field==="descontoReajuste"){ lancamentosRows[i].valorBruto = lancamentosRows[i].aluguelContrato - lancamentosRows[i].descontoReajuste; } renderLancTable(); }
+
+/* ---- Salvar no histórico (alimenta a aba de Controle de IPTU) ---- */
+// Chave = ano-mês mais frequente entre as datas de recebimento do lote processado
+// (cada "Processar" sobrescreve a mesma chave, então reprocessar o mesmo mês não duplica).
+function autoSalvarHistorico(){
+  const contagem = {};
+  lancamentosRows.forEach(r=>{ if(r.dataRecebimento){ const k = `${r.dataRecebimento.y}-${String(r.dataRecebimento.m).padStart(2,"0")}`; contagem[k]=(contagem[k]||0)+1; } });
+  const chaves = Object.keys(contagem).sort((a,b)=>contagem[b]-contagem[a]);
+  const chave = chaves[0] || `proc-${Date.now()}`;
+  historicoDB[chave] = { lancamentos: lancamentosRows.map(r=>({conta:r.conta, iptuPago747:r.iptuPago747||0, iptuRessarcido791:r.iptuRessarcido791||0})) };
+  saveHistorico(historicoDB);
+}
+
+/* =========================================================================
+   EXPORTAÇÃO 1 — Mantovani (NFS)
+   ========================================================================= */
+function ultimoDiaUtilMesAtual(){
+  const now = new Date();
+  let d = new Date(now.getFullYear(), now.getMonth()+1, 0);
+  while(d.getDay()===0 || d.getDay()===6){ d.setDate(d.getDate()-1); }
+  return {y:d.getFullYear(), m:d.getMonth()+1, d:d.getDate()};
+}
+const MANTOVANI_HEADER = ["CPF/CNPJ","Razão Social","UF","Município","Endereço","Número Documento","Série","Data","Situação","Acumulador","CFPS","Valor Serviços","Valor Descontos","Valor Dedução","Valor Contábil","Base de Calculo","Alíquota ISS","Valor ISS Normal","Valor ISS Retido","Valor IRRF","Valor PIS","Valor COFINS","Valor CSLL","Valo CRF","Valor INSS","Código do Item","Quantidade","Valor Unitário"];
+function mantovaniRowArray(r){
+  const row = new Array(28).fill("");
+  const dt = ultimoDiaUtilMesAtual();
+  const inq = inquilinosDB.find(i=>i.conta===r.conta);
+  row[0] = inq ? inq.cpf : "";
+  row[5] = ""; // Número Documento — preenchido manualmente
+  row[6] = 1;  // Série
+  row[7] = fmtDateBR(dt);
+  row[8] = 0;  // Situação
+  row[9] = 1;  // Acumulador
+  row[10] = 9101; // CFPS
+  row[11] = r.aluguelContrato || 0;   // Valor Serviços
+  row[12] = r.descontoReajuste || 0;  // Valor Descontos
+  row[14] = r.valorBruto || 0;        // Valor Contábil
+  return row;
+}
+function downloadMantovaniXlsx(){ downloadXlsx("Mantovani.xlsx", [MANTOVANI_HEADER, ...lancamentosRows.map(mantovaniRowArray)], "NFS"); }
+function downloadMantovaniTxt(){
+  const moneyIdx = [11,12,14];
+  const lines = lancamentosRows.map(r=> mantovaniRowArray(r).map((v,i)=> moneyIdx.includes(i) ? fmtValorTxt(v) : v).join(";"));
+  downloadText("ServicosPrestados.txt", lines.join("\r\n"));
+}
+
+/* =========================================================================
+   EXPORTAÇÃO 2 — Baixas de Serviços (casa com Contas a Receber do Domínio)
+   ========================================================================= */
+function matchParcela(inq){
+  if(!inq || inq.codCliente==null) return null;
+  const candidatos = parcelasCR.filter(p=>p.codCliente===inq.codCliente && p.situacao==="Aberta" && !p._consumida);
+  candidatos.sort((a,b)=>(dateVal(a.vencimento)||0)-(dateVal(b.vencimento)||0));
+  return candidatos[0] || null;
+}
+function buildBaixasRows(){
+  parcelasCR.forEach(p=>{ p._consumida = false; });
+  const ordered = [...lancamentosRows].sort((a,b)=>(dateVal(a.dataRecebimento)||0)-(dateVal(b.dataRecebimento)||0));
+  return ordered.map(row=>{
+    const inq = inquilinosDB.find(i=>i.conta===row.conta);
+    const parcela = matchParcela(inq);
+    if(parcela) parcela._consumida = true;
+    const divergente = !!(parcela && Math.abs(parcela.valorParcela - row.valorBruto) > 0.01);
+    return {
+      numeroNota: parcela ? parcela.documento : "",
+      cpf: inq ? inq.cpf : "",
+      dataVencimento: parcela ? parcela.vencimento : null,
+      dataBaixa: row.dataRecebimento,
+      valorRecebido: parcela ? parcela.valorParcela : (row.valorBruto||0),
+      divergente, cliente: row.cliente,
+    };
+  });
+}
+const BAIXAS_HEADER = ["Número da Nota","CPF/CNPJ do Cliente","Data de Vencimento da Parcela","Data da Baixa da Parcela","Valor Recebido","Valor Juros","Valor Multa","Valor Desconto","Valor PIS","Valor COFINS","Valor CSLL","Valor IRRF"];
+function baixasRowArray(b){
+  return [b.numeroNota, b.cpf, b.dataVencimento?fmtDateBR(b.dataVencimento):"", b.dataBaixa?fmtDateBR(b.dataBaixa):"", b.valorRecebido||0, 0,0,0,0,0,0,0];
+}
+function downloadBaixasXlsx(){
+  const rows = buildBaixasRows();
+  avisarDivergenciasBaixas(rows);
+  downloadXlsx("Baixas Serviços.xlsx", [BAIXAS_HEADER, ...rows.map(baixasRowArray)], "Baixas");
+}
+function downloadBaixasTxt(){
+  const rows = buildBaixasRows();
+  avisarDivergenciasBaixas(rows);
+  const moneyIdx = [4,5,6,7,8,9,10,11];
+  const lines = rows.map(b=> baixasRowArray(b).map((v,i)=> moneyIdx.includes(i) ? fmtValorTxt(v) : v).join(";"));
+  downloadText("baixa_ser.txt", lines.join("\r\n"));
+}
+function avisarDivergenciasBaixas(rows){
+  const status = document.getElementById("exportStatus");
+  const semNota = rows.filter(r=>!r.numeroNota);
+  const divergentes = rows.filter(r=>r.divergente);
+  const msgs = [];
+  if(semNota.length) msgs.push(`${semNota.length} linha(s) sem nota encontrada no Contas a Receber (confira se anexou o relatório e se o Cód.Cliente está certo no cadastro): ${semNota.map(r=>r.cliente).join(", ")}`);
+  if(divergentes.length) msgs.push(`${divergentes.length} linha(s) com valor da parcela diferente do Valor Bruto recebido — revisar: ${divergentes.map(r=>r.cliente).join(", ")}`);
+  if(msgs.length){ status.classList.remove("hidden","ok"); status.classList.add("err"); status.textContent = msgs.join("\n"); }
+  else { status.classList.remove("hidden","err"); status.classList.add("ok"); status.textContent = "Baixas de Serviços geradas sem divergências."; }
+}
+
+/* =========================================================================
+   EXPORTAÇÃO 3 — Lançamentos Mantovani (partidas simples e dobradas)
+   ========================================================================= */
+function buildLancMantovaniLotes(){
+  const groups = {};
+  lancamentosRows.forEach(r=>{
+    if(!r.dataRecebimento) return;
+    const key = dateKey(r.dataRecebimento)+"|"+r.locadora;
+    if(!groups[key]) groups[key] = {data:r.dataRecebimento, locadora:r.locadora, rows:[]};
+    groups[key].rows.push(r);
+  });
+  const lotes = [];
+  Object.values(groups).forEach(g=>{
+    const loc = getLocadora(g.locadora);
+    const totalLiquido = g.rows.reduce((s,r)=>s+(r.valorLiquido||0),0);
+    const comp = (g.rows.find(r=>r.comp)||{}).comp || "";
+    const nomeLoc = (g.locadora||"").toUpperCase();
+    const entries = [{debito:8, credito:null, valor:totalLiquido, hist:`RECEBIMENTO REF. ${nomeLoc} IMÓVEIS ${comp}`, iniciaLote:1}];
+    g.rows.forEach(r=>{
+      entries.push({debito:null, credito:r.conta, valor:r.aluguelContrato||0, hist:`RECEBIMENTO REF. ${(r.cliente||"").toUpperCase()} ${r.comp||comp}`});
+    });
+    const sum = f=>g.rows.reduce((s,r)=>s+(r[f]||0),0);
+    const add = (debito, credito, valor, hist)=>{ if(Math.abs(valor)>0.004) entries.push({debito, credito, valor:Math.abs(valor), hist}); };
+    add(381, null, sum('descontoReajuste'), `VALOR REF. DESCONTO DE BONIFICAÇÃO/REAJUSTE DA ${nomeLoc} NO REPASSE ${comp}`);
+    add(loc?loc.contaTaxaAdm:null, null, sum('taxaAdm'), `VALOR REF. DESCONTO DE TAXA ADMINISTRATIVA DA ${nomeLoc} NO REPASSE ${comp}`);
+    add(778, null, sum('fundoReserva'), `VALOR REF. DESCONTO DE FUNDO DE RESERVA DA ${nomeLoc} NO REPASSE ${comp}`);
+    add(null, 791, sum('iptuRessarcido791'), `VALOR REF. ESTORNO DE IPTU DA ${nomeLoc} NO REPASSE ${comp}`);
+    add(747, null, sum('iptuPago747'), `VALOR REF. IPTU PAGO NO REPASSE DA ${nomeLoc} ${comp}`);
+    add(341, null, sum('condChamExtra'), `VALOR REF. DESCONTO DE CONDOMINIO/CHAMADA EXTRA DA ${nomeLoc} NO REPASSE ${comp}`);
+    const jurosNet = sum('jurosRec');
+    if(jurosNet>0.004) add(null, 394, jurosNet, `VALOR REF. JUROS/MULTA RECEBIDOS DA ${nomeLoc} NO REPASSE ${comp}`);
+    else if(jurosNet<-0.004) add(394, null, -jurosNet, `VALOR REF. JUROS/MULTA DESCONTADOS DA ${nomeLoc} NO REPASSE ${comp}`);
+    add(384, null, sum('despBancaria'), `VALOR REF. DESCONTO DE TARIFA BANCÁRIA DA ${nomeLoc} NO REPASSE ${comp}`);
+    add(332, null, sum('manutencao'), `VALOR REF. DESCONTO DE MANUTENÇÃO DA ${nomeLoc} NO REPASSE ${comp}`);
+    add(345, null, sum('seguro'), `VALOR REF. DESCONTO DE SEGURO DA ${nomeLoc} NO REPASSE ${comp}`);
+    const somaDebito = entries.reduce((s,e)=>s+(e.debito!=null?e.valor:0),0);
+    const somaCredito = entries.reduce((s,e)=>s+(e.credito!=null?e.valor:0),0);
+    lotes.push({data:g.data, entries, balanceado: Math.abs(somaDebito-somaCredito)<0.02, somaDebito, somaCredito});
+  });
+  // Distribuição de lucros: linhas do extrato ainda não usadas por nenhuma imobiliária,
+  // negativas, com texto de transferência entre contas / distribuição.
+  ultimosTxns.forEach(t=>{
+    if(t._used) return;
+    if(t.valor>=0) return;
+    if(!/TRANSFERENCIA ENTRE CONTAS|DISTRIBUI[CÇ][AÃ]O DE LUCROS/i.test(normalizeText(t.descricao))) return;
+    lotes.push({
+      data: t.data,
+      entries: [
+        {debito:865, credito:null, valor:Math.abs(t.valor), hist:"PAGAMENTO REF. DISTRIBUIÇÃO DE LUCROS AO SÓCIO (completar nome)", iniciaLote:1},
+        {debito:null, credito:8, valor:Math.abs(t.valor), hist:"PAGAMENTO REF. DISTRIBUIÇÃO DE LUCROS AO SÓCIO (completar nome)"},
+      ],
+      balanceado: true, somaDebito:Math.abs(t.valor), somaCredito:Math.abs(t.valor), distribuicao:true,
+    });
+  });
+  return lotes.sort((a,b)=>(dateVal(a.data)||0)-(dateVal(b.data)||0));
+}
+const LANC_MANT_HEADER = ["Data","Débito","Crédito","Valor","Cód. Hist.","Complemento Histórico","Inicia Lote","Código Emp.","Centro de Custo Débito","Centro de Custo Crédito"];
+const CODIGO_EMPRESA_MANTOVANI = 151;
+function lancMantEntryArray(e, data){
+  return [fmtDateBR(data), e.debito??"", e.credito??"", e.valor, "", e.hist, e.iniciaLote??"", CODIGO_EMPRESA_MANTOVANI, "", ""];
+}
+function lancMantAoA(){
+  const lotes = buildLancMantovaniLotes();
+  const rows = [];
+  lotes.forEach(lote=> lote.entries.forEach(e=> rows.push(lancMantEntryArray(e, lote.data))));
+  return {lotes, rows};
+}
+function avisarLotesDesbalanceados(lotes){
+  const status = document.getElementById("exportStatus");
+  const ruins = lotes.filter(l=>!l.balanceado);
+  if(ruins.length){
+    status.classList.remove("hidden","ok"); status.classList.add("err");
+    status.textContent = `${ruins.length} lote(s) com Débito ≠ Crédito — confira antes de importar no Domínio: ` + ruins.map(l=>`${fmtDateBR(l.data)} (D ${fmtBRL(l.somaDebito)} x C ${fmtBRL(l.somaCredito)})`).join("; ");
+  } else {
+    status.classList.remove("hidden","err"); status.classList.add("ok");
+    status.textContent = `Lançamentos gerados — ${lotes.length} lote(s), todos com Débito = Crédito.`;
+  }
+}
+function downloadLancMantovaniXlsx(){
+  const {lotes, rows} = lancMantAoA();
+  avisarLotesDesbalanceados(lotes);
+  downloadXlsx("Lançamentos Mantovani.xlsx", [LANC_MANT_HEADER, ...rows], "Lançamentos");
+}
+function downloadLancMantovaniTxt(){
+  const {lotes, rows} = lancMantAoA();
+  avisarLotesDesbalanceados(lotes);
+  const lines = rows.map(r=> r.map((v,i)=> i===3 ? fmtValorTxt(v) : v).join(";"));
+  downloadText("entradas.txt", lines.join("\r\n"));
+}
+</script>
+</body>
+</html>
+
