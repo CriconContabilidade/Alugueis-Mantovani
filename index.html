@@ -314,12 +314,32 @@ function downloadText(filename, content, mime){
   a.download = filename;
   document.body.appendChild(a); a.click(); a.remove();
 }
+// O Domínio lê os TXT de importação como ANSI (Windows-1252), não UTF-8 — sem isso, todo
+// acento sai trocado (ex. "IMÓVEIS" vira "IMÃ³VEIS") na hora de importar. Como só usamos
+// letras acentuadas do português (todas ≤ 0xFF, iguais em Latin-1 e Windows-1252 nessa
+// faixa), converte char a char pro byte correspondente.
+function downloadTextAnsi(filename, content){
+  const bytes = new Uint8Array(content.length);
+  for(let i=0;i<content.length;i++){
+    const code = content.charCodeAt(i);
+    bytes[i] = code <= 0xFF ? code : 0x3F; // '?' pra qualquer caractere fora do Latin-1
+  }
+  const blob = new Blob([bytes], {type:"text/plain"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+}
 function downloadXlsx(filename, rowsAoA, sheetName){
   const ws = XLSX.utils.aoa_to_sheet(rowsAoA);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, sheetName||"Sheet1");
   XLSX.writeFile(wb, filename);
 }
+// Remove acentos (inclusive Ç→C) de texto que vai pros TXT de importação do Domínio — ele
+// não abre corretamente nem UTF-8 nem ANSI/Windows-1252 nesses campos, então em vez de tentar
+// acertar a codificação, tira o acento e evita o problema de vez.
+function stripAccents(s){ return String(s??"").normalize("NFD").replace(/[̀-ͯ]/g,""); }
 function normalizeText(s){
   return (s||"").toString().normalize("NFD").replace(/[̀-ͯ]/g,"").toUpperCase().trim();
 }
@@ -1030,7 +1050,7 @@ function buildRow(repasse, inq, dataRecebimento){
     aluguelContrato:0, descontoReajuste:0, comp:"",
     taxaAdm:0, fundoReserva:0, iptuRessarcido791:0, iptuPago747:0, condChamExtra:0,
     jurosRec:0, despBancaria:0, manutencao:0, seguro:0,
-    valorLiquido:0, dataRecebimento, observacao:[], flag: !inq,
+    valorLiquido:0, dataRecebimento, observacao:[], flag: !inq, numeroDocumento:"",
   };
   repasse.itens.forEach(it=>{
     const tipo = classificarItem(it.desc, it.valor);
@@ -1232,8 +1252,9 @@ function renderLancTable(){
     <div class="item"><div class="k">Linhas</div><div class="v">${lancamentosRows.length}</div></div>
     <div class="item"><div class="k">Total Valor Líquido</div><div class="v">R$ ${fmtBRL(totalLiquido)}</div></div>
   </div>
+  <div class="help">O <b>Nº Doc. NFS</b> é o número da nota que você gera no Domínio — preencha aqui pra ele já sair certo na planilha Mantovani (NFS); se ficar em branco, a exportação também sai em branco pra você completar depois.</div>
   <div class="table-wrap"><table class="preview"><thead><tr>
-    <th>Locadora</th><th>Cliente</th><th>Imóvel</th><th>Aluguel Contrato</th><th>Desc.Reajuste</th><th>Comp.</th><th>Valor Bruto</th>
+    <th>Locadora</th><th>Cliente</th><th>Nº Doc. NFS</th><th>Imóvel</th><th>Aluguel Contrato</th><th>Desc.Reajuste</th><th>Comp.</th><th>Valor Bruto</th>
     <th>Taxa Adm</th><th>Fundo Reserva</th><th>IPTU (791)</th><th>IPTU (747)</th><th>Cond./ChExtra</th><th>Juros Rec.</th>
     <th>Desp.Banc.</th><th>Manutenção</th><th>Seguro</th><th>Valor Líquido</th><th>Data Receb.</th><th>PIS</th><th>COFINS</th><th>Observação</th><th></th>
   </tr></thead><tbody>`;
@@ -1242,6 +1263,7 @@ function renderLancTable(){
     html += `<tr class="${r.flag?'flag':''}">
       <td>${r.locadora||""}</td>
       <td class="cell"><input class="cell-input wide" value="${r.cliente||''}" onchange="lancamentosRows[${i}].cliente=this.value"></td>
+      <td class="cell"><input class="cell-input" style="width:70px" value="${r.numeroDocumento||''}" onchange="lancamentosRows[${i}].numeroDocumento=this.value"></td>
       <td class="cell"><input class="cell-input wide" value="${r.imovel||''}" onchange="lancamentosRows[${i}].imovel=this.value"></td>
       <td class="cell"><input class="cell-input num" value="${fmtBRL(r.aluguelContrato)}" onchange="updateLancNum(${i},'aluguelContrato',this.value)"></td>
       <td class="cell"><input class="cell-input num" value="${fmtBRL(r.descontoReajuste)}" onchange="updateLancNum(${i},'descontoReajuste',this.value)"></td>
@@ -1297,7 +1319,7 @@ function mantovaniRowArray(r){
   const dt = ultimoDiaUtilMesAtual();
   const inq = inquilinosDB.find(i=>i.conta===r.conta);
   row[0] = inq ? inq.cpf : "";
-  row[5] = ""; // Número Documento — preenchido manualmente
+  row[5] = r.numeroDocumento || ""; // Número Documento — editável na tela de Lançamentos
   row[6] = 1;  // Série
   row[7] = fmtDateBR(dt);
   row[8] = 0;  // Situação
@@ -1311,8 +1333,8 @@ function mantovaniRowArray(r){
 function downloadMantovaniXlsx(){ downloadXlsx("Mantovani.xlsx", [MANTOVANI_HEADER, ...lancamentosRows.map(mantovaniRowArray)], "NFS"); }
 function downloadMantovaniTxt(){
   const moneyIdx = [11,12,14];
-  const lines = lancamentosRows.map(r=> mantovaniRowArray(r).map((v,i)=> moneyIdx.includes(i) ? fmtValorTxt(v) : v).join(";"));
-  downloadText("ServicosPrestados.txt", lines.join("\r\n"));
+  const lines = lancamentosRows.map(r=> mantovaniRowArray(r).map((v,i)=> moneyIdx.includes(i) ? fmtValorTxt(v) : (typeof v==="string"?stripAccents(v):v)).join(";"));
+  downloadTextAnsi("ServicosPrestados.txt", lines.join("\r\n"));
 }
 
 /* =========================================================================
@@ -1355,8 +1377,8 @@ function downloadBaixasTxt(){
   const rows = buildBaixasRows();
   avisarDivergenciasBaixas(rows);
   const moneyIdx = [4,5,6,7,8,9,10,11];
-  const lines = rows.map(b=> baixasRowArray(b).map((v,i)=> moneyIdx.includes(i) ? fmtValorTxt(v) : v).join(";"));
-  downloadText("baixa_ser.txt", lines.join("\r\n"));
+  const lines = rows.map(b=> baixasRowArray(b).map((v,i)=> moneyIdx.includes(i) ? fmtValorTxt(v) : (typeof v==="string"?stripAccents(v):v)).join(";"));
+  downloadTextAnsi("baixa_ser.txt", lines.join("\r\n"));
 }
 function avisarDivergenciasBaixas(rows){
   const status = document.getElementById("exportStatus");
@@ -1384,11 +1406,22 @@ function buildLancMantovaniLotes(){
   Object.values(groups).forEach(g=>{
     const loc = getLocadora(g.locadora);
     const totalLiquido = g.rows.reduce((s,r)=>s+(r.valorLiquido||0),0);
-    const comp = (g.rows.find(r=>r.comp)||{}).comp || "";
+    // Competência do repasse (pro histórico) = a mais comum entre as linhas do lote, sempre
+    // vinda da coluna "Comp." que você preenche na tela (competência do aluguel) — nunca da
+    // data de recebimento. Cada linha de crédito por inquilino já usa a própria (r.comp||comp).
+    const compCounts = {};
+    g.rows.forEach(r=>{ if(r.comp) compCounts[r.comp] = (compCounts[r.comp]||0)+1; });
+    let comp = "", compN = 0;
+    Object.keys(compCounts).forEach(k=>{ if(compCounts[k]>compN){ comp = k; compN = compCounts[k]; } });
     const nomeLoc = (g.locadora||"").toUpperCase();
     const entries = [{debito:8, credito:null, valor:totalLiquido, hist:`RECEBIMENTO REF. ${nomeLoc} IMÓVEIS ${comp}`, iniciaLote:1}];
     g.rows.forEach(r=>{
-      entries.push({debito:null, credito:r.conta, valor:r.aluguelContrato||0, hist:`RECEBIMENTO REF. ${(r.cliente||"").toUpperCase()} ${r.comp||comp}`});
+      // Linhas avulsas (condomínio/multa) não têm Aluguel Contrato — não gera crédito de
+      // valor 0 (o Domínio rejeita lançamento com valor zero); o efeito delas já entra pelas
+      // contas de débito/crédito específicas (341/394/etc.) somadas mais abaixo.
+      if((r.aluguelContrato||0) > 0.004){
+        entries.push({debito:null, credito:r.conta, valor:r.aluguelContrato, hist:`RECEBIMENTO REF. ${(r.cliente||"").toUpperCase()} ${r.comp||comp}`});
+      }
     });
     const sum = f=>g.rows.reduce((s,r)=>s+(r[f]||0),0);
     const add = (debito, credito, valor, hist)=>{ if(Math.abs(valor)>0.004) entries.push({debito, credito, valor:Math.abs(valor), hist}); };
@@ -1455,8 +1488,8 @@ function downloadLancMantovaniXlsx(){
 function downloadLancMantovaniTxt(){
   const {lotes, rows} = lancMantAoA();
   avisarLotesDesbalanceados(lotes);
-  const lines = rows.map(r=> r.map((v,i)=> i===3 ? fmtValorTxt(v) : v).join(";"));
-  downloadText("entradas.txt", lines.join("\r\n"));
+  const lines = rows.map(r=> r.map((v,i)=> i===3 ? fmtValorTxt(v) : (typeof v==="string"?stripAccents(v):v)).join(";"));
+  downloadTextAnsi("entradas.txt", lines.join("\r\n"));
 }
 </script>
 </body>
