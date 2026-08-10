@@ -1165,10 +1165,28 @@ async function processarLancamentos(){
         const repasses = REPASSE_PARSERS[locNome](lines);
         repasses.forEach(r=>r._locadoraNome = locNome);
         if(locNome === "Rio Branco"){
+          const semBaterExato = [];
           repasses.forEach(r=>{
             const txn = txns.find(t=>!t._used && loc && loc.keywords.some(k=>normalizeText(t.descricao).includes(normalizeText(k))) && Math.abs(Math.abs(t.valor)-r.totalDep)<0.01);
+            if(txn){ txn._used = true; finalizeRepasse(r, txn.data); }
+            else semBaterExato.push(r);
+          });
+          // Não bateu valor exato — comum quando o relatório da Rio Branco usado é de um mês
+          // anterior (ela ainda não mandou o do mês atual) e o total ficou um pouco diferente
+          // do que caiu no banco. Em vez de deixar sem data de recebimento, casa pelo valor
+          // mais próximo entre o que sobrou de linha do extrato dela e avisa na observação.
+          semBaterExato.forEach(r=>{
+            const candidatos = txns.filter(t=>!t._used && loc && loc.keywords.some(k=>normalizeText(t.descricao).includes(normalizeText(k))));
+            candidatos.sort((a,b)=>Math.abs(Math.abs(a.valor)-r.totalDep) - Math.abs(Math.abs(b.valor)-r.totalDep));
+            const txn = candidatos[0];
             if(txn) txn._used = true;
             finalizeRepasse(r, txn?txn.data:null);
+            if(txn){
+              const diff = Math.abs(Math.abs(txn.valor)-r.totalDep);
+              const last = lancamentosRows[lancamentosRows.length-1];
+              last.observacao = (last.observacao?last.observacao+"; ":"") + `Valor do relatório (R$ ${fmtBRL(r.totalDep)}) não bateu exato com a linha do extrato (R$ ${fmtBRL(Math.abs(txn.valor))}) — casado pelo mais próximo, confira.`;
+              last.flag = true;
+            }
           });
         } else {
           const pdfTotal = repasses.reduce((s,r)=>s+r.itens.reduce((s2,i)=>s2+i.valor,0),0);
