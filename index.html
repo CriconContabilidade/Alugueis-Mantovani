@@ -1283,8 +1283,7 @@ lancamentosRows.forEach(r => {
   totais.cofins += (Number(r.valorBruto) || 0) * 0.03;
 });
 
-let html = `<div class="help">
-  <div class="help">O <b>Nº Doc. NFS</b> é o número da nota que você gera no Domínio — preencha aqui pra ele já sair certo na planilha Mantovani (NFS); se ficar em branco, a exportação também sai em branco pra você completar depois.</div>
+let html = `<div class="help">O <b>Nº Doc. NFS</b> é o número da nota que você gera no Domínio — preencha aqui pra ele já sair certo na planilha Mantovani (NFS); se ficar em branco, a exportação também sai em branco pra você completar depois.</div>
   <div class="table-wrap"><table class="preview"><thead><tr>
     <th>Locadora</th><th>Cliente</th><th>Nº Doc. NFS</th><th>Imóvel</th><th>Aluguel Contrato</th><th>Desc.Reajuste</th><th>Comp.</th><th>Valor Bruto</th>
     <th>Taxa Adm</th><th>Fundo Reserva</th><th>IPTU (791)</th><th>IPTU (747)</th><th>Cond./ChExtra</th><th>Juros Rec.</th>
@@ -1420,7 +1419,12 @@ function matchParcela(inq){
 }
 function buildBaixasRows(){
   parcelasCR.forEach(p=>{ p._consumida = false; });
-  const ordered = [...lancamentosRows].sort((a,b)=>(dateVal(a.dataRecebimento)||0)-(dateVal(b.dataRecebimento)||0));
+  // Só linhas que são de fato recebimento de aluguel (Aluguel Contrato > 0) baixam parcela.
+  // Linhas avulsas (condomínio, chamada extra, multa — sem aluguel, valor 0) não representam
+  // nota nenhuma sendo paga; incluí-las aqui consumia à toa uma parcela de outro mês do mesmo
+  // inquilino (a mais antiga em aberto), fazendo uma nota errada aparecer como baixada.
+  const comAluguel = lancamentosRows.filter(r => (r.aluguelContrato||0) > 0.004);
+  const ordered = [...comAluguel].sort((a,b)=>(dateVal(a.dataRecebimento)||0)-(dateVal(b.dataRecebimento)||0));
   return ordered.map(row=>{
     const inq = inquilinosDB.find(i=>i.conta===row.conta);
     const parcela = matchParcela(inq);
