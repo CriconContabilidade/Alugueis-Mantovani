@@ -1017,24 +1017,51 @@ function parseCasarao(lines){
 /* =========================================================================
    PARSER — Rio Branco (fallback manual quando não vier o PDF no mês)
    ========================================================================= */
+// A tabela da Rio Branco OMITE colunas com valor 0 em vez de imprimir "0,00" — uma linha sem
+// IPTU e sem desconto extra tem só 5 números em vez dos 7 "cheios", então não dá pra contar
+// com uma quantidade fixa de colunas. Em vez disso, reconstrói a estrutura variável
+// [receita...] TotalRec [despesa...] TotalDesp TotalDep achando, da esquerda pra direita, o
+// primeiro número que bate com a soma dos anteriores (esse é o "Total Rec."), repete o mesmo
+// truque depois dele pro "Total Desp."; o último número da linha é sempre o Total Depositado.
 function parseRioBranco(lines){
   const out = [];
-  const ROW_RE = /^(\d+)\s+(.+?)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)$/;
   lines.forEach(line=>{
     if(/^TOTAL/i.test(line)) return;
-    const m = line.match(ROW_RE);
-    if(m){
-      out.push({
-        ref:"riobranco-"+m[1], contrato:null, imovelDesc:m[2], nome:m[2],
-        itens:[
-          {desc:"Aluguel", valor:parseFloat(m[3])},
-          {desc:"IPTU", valor:parseFloat(m[4])},
-          {desc:"Taxa de Administração", valor:-parseFloat(m[6])},
-          {desc:"Condomínio", valor:-(parseFloat(m[7]))},
-        ].filter(i=>i.valor!==0),
-        totalDep: parseFloat(m[9]),
-      });
+    const tokens = line.trim().split(/\s+/);
+    if(!/^\d+$/.test(tokens[0])) return;
+    const idx = tokens[0];
+    const numTokens = [], descTokens = [];
+    let emNumeros = false, valido = true;
+    for(let i=1;i<tokens.length;i++){
+      if(/^\d+\.\d{2}$/.test(tokens[i])){ emNumeros = true; numTokens.push(parseFloat(tokens[i])); }
+      else if(!emNumeros){ descTokens.push(tokens[i]); }
+      else { valido = false; break; } // texto depois que os números já começaram — não é essa linha
     }
+    if(!valido || numTokens.length < 3) return;
+    const totalDep = numTokens[numTokens.length-1];
+    let totalRecIdx = -1;
+    for(let i=1;i<numTokens.length-1;i++){
+      if(Math.abs(numTokens.slice(0,i).reduce((a,b)=>a+b,0) - numTokens[i]) < 0.02){ totalRecIdx = i; break; }
+    }
+    if(totalRecIdx<0) return;
+    let totalDespIdx = -1;
+    for(let j=totalRecIdx+1;j<numTokens.length-1;j++){
+      if(Math.abs(numTokens.slice(totalRecIdx+1,j).reduce((a,b)=>a+b,0) - numTokens[j]) < 0.02){ totalDespIdx = j; break; }
+    }
+    if(totalDespIdx<0) return;
+    const receitaItens = numTokens.slice(0, totalRecIdx);       // [Alug, (Iptu)]
+    const despesaItens = numTokens.slice(totalRecIdx+1, totalDespIdx); // [Honor, (Cond/Outros)]
+    const desc = descTokens.join(" ");
+    out.push({
+      ref:"riobranco-"+idx, contrato:null, imovelDesc:desc, nome:desc,
+      itens:[
+        {desc:"Aluguel", valor:receitaItens[0]||0},
+        {desc:"IPTU", valor:receitaItens.slice(1).reduce((a,b)=>a+b,0)},
+        {desc:"Taxa de Administração", valor:-(despesaItens[0]||0)},
+        {desc:"Condomínio", valor:-(despesaItens.slice(1).reduce((a,b)=>a+b,0))},
+      ].filter(i=>Math.abs(i.valor)>0.004),
+      totalDep,
+    });
   });
   return out;
 }
