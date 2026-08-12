@@ -1537,16 +1537,17 @@ function buildLancMantovaniLotes(){
     const nomeLoc = (g.locadora||"").toUpperCase();
     const entries = [{debito:8, credito:null, valor:totalLiquido, hist:`RECEBIMENTO REF. ${nomeLoc} IMÓVEIS ${comp}`, iniciaLote:1}];
     g.rows.forEach(r=>{
-      // Linhas avulsas (condomínio/multa) não têm Aluguel Contrato — não gera crédito de
-      // valor 0 (o Domínio rejeita lançamento com valor zero); o efeito delas já entra pelas
-      // contas de débito/crédito específicas (341/394/etc.) somadas mais abaixo.
-      if((r.aluguelContrato||0) > 0.004){
-        entries.push({debito:null, credito:r.conta, valor:r.aluguelContrato, hist:`RECEBIMENTO REF. ${(r.cliente||"").toUpperCase()} ${r.comp||comp}`});
+      // Crédito pelo valor JÁ LÍQUIDO do desconto de bonificação/reajuste (Aluguel - Desconto)
+      // — o desconto só aparece na Nota Fiscal (Valor Descontos), não tem lançamento contábil
+      // próprio aqui. Linhas avulsas (condomínio/multa) não têm Valor Bruto — não gera crédito
+      // de valor 0 (o Domínio rejeita lançamento com valor zero); o efeito delas já entra
+      // pelas contas de débito/crédito específicas (341/394/etc.) somadas mais abaixo.
+      if((r.valorBruto||0) > 0.004){
+        entries.push({debito:null, credito:r.conta, valor:r.valorBruto, hist:`RECEBIMENTO REF. ${(r.cliente||"").toUpperCase()} ${r.comp||comp}`});
       }
     });
     const sum = f=>g.rows.reduce((s,r)=>s+(r[f]||0),0);
     const add = (debito, credito, valor, hist)=>{ if(Math.abs(valor)>0.004) entries.push({debito, credito, valor:Math.abs(valor), hist}); };
-    add(381, null, sum('descontoReajuste'), `VALOR REF. DESCONTO DE BONIFICAÇÃO/REAJUSTE DA ${nomeLoc} NO REPASSE ${comp}`);
     add(loc?loc.contaTaxaAdm:null, null, sum('taxaAdm'), `VALOR REF. DESCONTO DE TAXA ADMINISTRATIVA DA ${nomeLoc} NO REPASSE ${comp}`);
     add(778, null, sum('fundoReserva'), `VALOR REF. DESCONTO DE FUNDO DE RESERVA DA ${nomeLoc} NO REPASSE ${comp}`);
     add(null, 791, sum('iptuRessarcido791'), `VALOR REF. ESTORNO DE IPTU DA ${nomeLoc} NO REPASSE ${comp}`);
@@ -1571,8 +1572,8 @@ function buildLancMantovaniLotes(){
     lotes.push({
       data: t.data,
       entries: [
-        {debito:865, credito:null, valor:Math.abs(t.valor), hist:"PAGAMENTO REF. DISTRIBUIÇÃO DE LUCROS AO SÓCIO (completar nome)", iniciaLote:1},
-        {debito:null, credito:8, valor:Math.abs(t.valor), hist:"PAGAMENTO REF. DISTRIBUIÇÃO DE LUCROS AO SÓCIO (completar nome)"},
+        {debito:865, credito:null, valor:Math.abs(t.valor), hist:"PAGAMENTO REF. DISTRIBUIÇÃO DE LUCROS AO SÓCIO HUMBERTO BELTRAME MANTOVANI", iniciaLote:1},
+        {debito:null, credito:8, valor:Math.abs(t.valor), hist:"PAGAMENTO REF. DISTRIBUIÇÃO DE LUCROS AO SÓCIO HUMBERTO BELTRAME MANTOVANI"},
       ],
       balanceado: true, somaDebito:Math.abs(t.valor), somaCredito:Math.abs(t.valor), distribuicao:true,
     });
