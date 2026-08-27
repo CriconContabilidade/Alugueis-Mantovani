@@ -369,17 +369,25 @@ function importJson(evt, which){
 async function extractPdfPageLines(pdf, pageNum){
   const page = await pdf.getPage(pageNum);
   const content = await page.getTextContent();
-  const rows = {};
-  content.items.forEach(it=>{
-    if(it.str==="") return; // itens de texto vazio (sem largura própria) atrapalham a
+  // Agrupa por Y com TOLERÂNCIA (não Math.round exato): em alguns extratos (ex. Unicred/AILOS)
+  // uma coluna (o valor/saldo) tem baseline Y levemente diferente (~0.3pt) do resto da linha,
+  // e esse offset às vezes cruza uma fronteira de arredondamento — quebrando uma única linha
+  // visual do extrato em duas linhas de texto, corrompendo a data/descrição/valor reconstruídos
+  // (ex.: uma transação fica sem descrição e a descrição "vaza" pra transação vizinha).
+  const Y_TOL = 1.5;
+  const rawItems = content.items.filter(it=> it.str!=="") // itens de texto vazio (sem largura própria) atrapalham a
     // detecção de duplicata abaixo, já que "quebram" a adjacência entre as 2 cópias reais.
-    const y = Math.round(it.transform[5]);
-    if(!rows[y]) rows[y] = [];
-    rows[y].push({x:it.transform[4], w:it.width||0, text:it.str});
+    .map(it=>({y:it.transform[5], x:it.transform[4], w:it.width||0, text:it.str}))
+    .sort((a,b)=> b.y-a.y);
+  const rowGroups = [];
+  rawItems.forEach(it=>{
+    let row = rowGroups.find(r=> Math.abs(r.y - it.y) <= Y_TOL);
+    if(!row){ row = {y:it.y, items:[]}; rowGroups.push(row); }
+    row.items.push(it);
   });
-  const ys = Object.keys(rows).map(Number).sort((a,b)=>b-a);
-  return ys.map(y=>{
-    const items = rows[y].sort((a,b)=>a.x-b.x);
+  rowGroups.sort((a,b)=> b.y-a.y);
+  return rowGroups.map(rg=>{
+    const items = rg.items.sort((a,b)=>a.x-b.x);
     // Alguns PDFs (ex. Casarão) simulam negrito desenhando o mesmo texto duas vezes com um
     // deslocamento horizontal mínimo (não é conteúdo repetido de verdade) — descarta a 2ª cópia.
     const deduped = [];
