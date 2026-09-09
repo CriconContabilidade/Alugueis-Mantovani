@@ -1827,7 +1827,7 @@ function renderAplicacaoResultado(){
   }
   if(aplicacaoResgates.length){
     html += `<div class="section-title" style="margin-top:18px;">Resgate no mês — NFS (rendimento pago = valor da NF, IR = 15%)</div>
-    <div class="help">Confira <b>CNPJ</b>, <b>Acumulador</b> e <b>CFPS</b> antes de exportar — ainda não confirmados, saem em branco.</div>
+    <div class="help">CNPJ da Unicred e Acumulador (3) já preenchidos. <b>CFPS</b> ainda não confirmado — sai em branco, confira antes de exportar.</div>
     <div class="table-wrap"><table class="preview"><thead><tr><th>Título</th><th>Conta</th><th>Rendimento Pago (Valor NF)</th><th>IR Retido (15%)</th></tr></thead><tbody>` +
       aplicacaoResgates.map((r,i)=>`<tr>
         <td>${r.titulo}</td>
@@ -1868,14 +1868,16 @@ function downloadAplicacaoRendimentoTxt(){
 }
 // Mesmo leiaute NFS de 28 colunas usado no Mantovani (NFS) — CNPJ/Acumulador/CFPS ficam em
 // branco até confirmar com o usuário (ver help da tela), pra não sair errado numa nota fiscal.
+const CNPJ_UNICRED = "00.075.847/0001-35";
 function aplicacaoResgateRowArray(r){
   const row = new Array(28).fill("");
   const dt = ultimoDiaUtilMesAtual();
+  row[0] = CNPJ_UNICRED;
   row[5] = ""; // Número Documento — preenche manualmente
   row[6] = "U"; // Série
   row[7] = fmtDateBR(dt);
   row[8] = 0; // Situação
-  row[9] = ""; // Acumulador — confirmar
+  row[9] = 3; // Acumulador
   row[10] = ""; // CFPS — confirmar
   row[11] = r.rendimentoPago; // Valor Serviços = valor da NF
   row[14] = r.rendimentoPago; // Valor Contábil
