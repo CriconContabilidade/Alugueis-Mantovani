@@ -1827,7 +1827,7 @@ function renderAplicacaoResultado(){
   }
   if(aplicacaoResgates.length){
     html += `<div class="section-title" style="margin-top:18px;">Resgate no mês — NFS (rendimento pago = valor da NF, IR = 15%)</div>
-    <div class="help">CNPJ da Unicred e Acumulador (3) já preenchidos. <b>CFPS</b> ainda não confirmado — sai em branco, confira antes de exportar.</div>
+    <div class="help">CNPJ da Unicred, Acumulador (3) e CFPS (9101) já preenchidos.</div>
     <div class="table-wrap"><table class="preview"><thead><tr><th>Título</th><th>Conta</th><th>Rendimento Pago (Valor NF)</th><th>IR Retido (15%)</th></tr></thead><tbody>` +
       aplicacaoResgates.map((r,i)=>`<tr>
         <td>${r.titulo}</td>
@@ -1878,7 +1878,7 @@ function aplicacaoResgateRowArray(r){
   row[7] = fmtDateBR(dt);
   row[8] = 0; // Situação
   row[9] = 3; // Acumulador
-  row[10] = ""; // CFPS — confirmar
+  row[10] = 9101; // CFPS
   row[11] = r.rendimentoPago; // Valor Serviços = valor da NF
   row[14] = r.rendimentoPago; // Valor Contábil
   row[19] = r.irRetido; // Valor IRRF
