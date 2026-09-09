@@ -1387,7 +1387,7 @@ async function processarLancamentos(){
     }
     aplicacaoRendimentos = []; aplicacaoResgates = []; aplicacaoNaoIdentificadas = [];
     if(lancArquivos.aplicacao){
-      const itemsAllPages = (await extractPdfAllItems(lancArquivos.aplicacao)).flat();
+      const itemsAllPages = await extractPdfAllItems(lancArquivos.aplicacao);
       const linhas = parseAplicacaoFinanceira(itemsAllPages);
       linhas.forEach(l=>{
         const apl = getAplicacao(l.titulo);
