@@ -1493,9 +1493,11 @@ function buildBaixasRows(){
     };
   });
 }
-const BAIXAS_HEADER = ["Número da Nota","CPF/CNPJ do Cliente","Data de Vencimento da Parcela","Data da Baixa da Parcela","Valor Recebido","Valor Juros","Valor Multa","Valor Desconto","Valor PIS","Valor COFINS","Valor CSLL","Valor IRRF"];
+const BAIXAS_HEADER = ["Número da Nota","Série do Documento","CPF/CNPJ do Cliente","Data de Vencimento da Parcela","Data da Baixa da Parcela","Valor Recebido","Valor Juros","Valor Multa","Valor Desconto","Valor PIS","Valor COFINS","Valor CSLL","Valor IRRF"];
 function baixasRowArray(b){
-  return [b.numeroNota, b.cpf, b.dataVencimento?fmtDateBR(b.dataVencimento):"", b.dataBaixa?fmtDateBR(b.dataBaixa):"", b.valorRecebido||0, 0,0,0,0,0,0,0];
+  // Série do Documento — coluna exigida pelo Domínio na baixa de serviços, logo após o
+  // Número da Nota; é sempre "U", não varia por cliente/nota.
+  return [b.numeroNota, "U", b.cpf, b.dataVencimento?fmtDateBR(b.dataVencimento):"", b.dataBaixa?fmtDateBR(b.dataBaixa):"", b.valorRecebido||0, 0,0,0,0,0,0,0];
 }
 function downloadBaixasXlsx(){
   const rows = buildBaixasRows();
@@ -1505,7 +1507,7 @@ function downloadBaixasXlsx(){
 function downloadBaixasTxt(){
   const rows = buildBaixasRows();
   avisarDivergenciasBaixas(rows);
-  const moneyIdx = [4,5,6,7,8,9,10,11];
+  const moneyIdx = [5,6,7,8,9,10,11,12];
   const lines = rows.map(b=> baixasRowArray(b).map((v,i)=> moneyIdx.includes(i) ? fmtValorTxt(v) : (typeof v==="string"?stripAccents(v):v)).join(";"));
   downloadTextAnsi("baixa_ser.txt", lines.join("\r\n"));
 }
