@@ -892,9 +892,18 @@ function parseRepasseJK(lines){
     repasses.push(cur);
   });
 
+  // Quando o avulso é do MESMO imóvel de um contrato já presente neste relatório (ex.: multa
+  // ou chamada extra do Luciano no mesmo repasse do aluguel dele), funde os itens no contrato
+  // em vez de virar uma linha separada — senão o valor recebido daquele inquilino fica
+  // dividido em duas linhas e não bate com a nota/parcela dele. Só vira linha "avulso"
+  // separada (que aí precisa casar por imóvel/endereço) quando não há contrato daquele imóvel
+  // neste mesmo PDF (ex.: imóvel desocupado, ou inquilino cujo contrato saiu em outro arquivo).
   avulsoImoveis.forEach((imv,i)=>{
     if(avulsoValores[i]==null) return;
-    repasses.push({ref:"jk-avulso-"+imv+"-"+i, contrato:null, imovelJK:imv, nome:"", enderecoAvulso:avulsoEnderecos[i]||"", itens:[{desc:avulsoCodigos[i]||"Avulso", valor:avulsoValores[i]}], avulso:true});
+    const item = {desc:avulsoCodigos[i]||"Avulso", valor:avulsoValores[i]};
+    const alvo = repasses.find(r=>!r.avulso && r.imovelJK===imv);
+    if(alvo){ alvo.itens.push(item); }
+    else repasses.push({ref:"jk-avulso-"+imv+"-"+i, contrato:null, imovelJK:imv, nome:"", enderecoAvulso:avulsoEnderecos[i]||"", itens:[item], avulso:true});
   });
   return repasses.filter(r=>r.itens.length>0);
 }
