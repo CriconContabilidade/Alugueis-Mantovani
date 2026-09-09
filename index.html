@@ -1444,7 +1444,7 @@ function mantovaniRowArray(r){
   const inq = inquilinosDB.find(i=>i.conta===r.conta);
   row[0] = inq ? inq.cpf : "";
   row[5] = r.numeroDocumento || ""; // Número Documento — editável na tela de Lançamentos
-  row[6] = 1;  // Série
+  row[6] = "U";  // Série
   row[7] = fmtDateBR(dt);
   row[8] = 0;  // Situação
   row[9] = 1;  // Acumulador
