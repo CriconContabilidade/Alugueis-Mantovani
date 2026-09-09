@@ -174,6 +174,11 @@ code{background:var(--paper);padding:1px 5px;border-radius:3px;font-family:'IBM 
           <div class="name">Locadoras / Imobiliárias</div>
           <div class="desc">As 6 imobiliárias, conta de taxa administrativa e palavras-chave de reconhecimento no extrato.</div>
         </div>
+        <div class="pick-card" onclick="goCadastro('aplicacoes')">
+          <div class="icon">📈</div>
+          <div class="name">Aplicações Financeiras</div>
+          <div class="desc">Título (nº da aplicação) → conta Domínio, pra lançar o rendimento do mês de cada CDB.</div>
+        </div>
         <div class="pick-card" onclick="goIptu()">
           <div class="icon">📐</div>
           <div class="name">Controle de IPTU</div>
@@ -224,6 +229,20 @@ code{background:var(--paper);padding:1px 5px;border-radius:3px;font-family:'IBM 
     </div>
   </div>
 
+  <!-- ===================== CADASTRO: APLICAÇÕES FINANCEIRAS ===================== -->
+  <div id="screen-cad-aplicacoes" class="hidden">
+    <div class="card">
+      <div class="help">Título (nº da aplicação, como aparece no Demonstrativo de Rentabilidade da Unicred) → conta Domínio de cada CDB. Precisa estar cadastrado aqui pra a ferramenta saber que conta debitar no lançamento do rendimento do mês. Clique no nome de uma coluna pra ordenar por ela.</div>
+      <div class="table-toolbar"><input type="search" placeholder="Filtrar..." oninput="aplicacoesState.filter=this.value; renderAplicacoesTable();"><span class="count" id="aplicacoesCount"></span></div>
+      <div class="table-wrap"><table class="preview" id="aplicacoesTable"></table></div>
+      <div class="btn-row">
+        <button class="btn" onclick="addAplicacaoRow()">+ Nova aplicação</button>
+        <button class="btn ghost" onclick="exportJson('mantovani_aplicacoes','aplicacoes.json')">Exportar JSON</button>
+        <label class="btn ghost small" style="display:inline-block;text-align:center;cursor:pointer;">Importar JSON<input type="file" accept=".json" onchange="importJson(event,'aplicacoes')" style="display:none"></label>
+      </div>
+    </div>
+  </div>
+
   <!-- ===================== CONTROLE DE IPTU ===================== -->
   <div id="screen-iptu" class="hidden">
     <div class="card">
@@ -262,6 +281,8 @@ code{background:var(--paper);padding:1px 5px;border-radius:3px;font-family:'IBM 
       </div>
       <div id="exportStatus" class="status-line hidden"></div>
     </div>
+
+    <div id="boxAplicacao" class="card hidden"></div>
   </div>
 
   <footer>Aluguéis Mantovani · Cricon Contabilidade — uso interno</footer>
@@ -356,6 +377,7 @@ function importJson(evt, which){
       if(which==="imoveis"){ imoveisDB = data; saveImoveis(imoveisDB); renderImoveisTable(); }
       if(which==="inquilinos"){ inquilinosDB = data; saveInquilinos(inquilinosDB); renderInquilinosTable(); }
       if(which==="locadoras"){ locadorasDB = data; saveLocadoras(locadorasDB); renderLocadorasTable(); }
+      if(which==="aplicacoes"){ aplicacoesDB = data; saveAplicacoes(aplicacoesDB); renderAplicacoesTable(); }
       alert("Importado com sucesso.");
     }catch(err){ alert("Arquivo inválido: " + err.message); }
   };
@@ -414,11 +436,28 @@ async function extractPdfAllLines(file){
   }
   return pages;
 }
+// Itens de texto CRUS (x,y,texto), sem juntar em linha — usado pelo Demonstrativo de
+// Aplicação Financeira, cujo PDF organiza a tabela em faixas horizontais por CAMPO (não por
+// título) e por isso não dá pra reconstruir linha a linha como nos outros relatórios.
+async function extractPdfPageItems(pdf, pageNum){
+  const page = await pdf.getPage(pageNum);
+  const content = await page.getTextContent();
+  return content.items.map(it=>({x:it.transform[4], y:it.transform[5], text:it.str, w:it.width||0})).filter(it=>it.text.trim()!=="");
+}
+async function extractPdfAllItems(file){
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data:buf}).promise;
+  const pages = [];
+  for(let p=1;p<=pdf.numPages;p++){
+    pages.push(await extractPdfPageItems(pdf, p));
+  }
+  return pages;
+}
 
 /* =========================================================================
    NAVEGAÇÃO
    ========================================================================= */
-const SCREENS = ["screen-home","screen-cad-imoveis","screen-cad-inquilinos","screen-cad-locadoras","screen-iptu","screen-lancamentos"];
+const SCREENS = ["screen-home","screen-cad-imoveis","screen-cad-inquilinos","screen-cad-locadoras","screen-cad-aplicacoes","screen-iptu","screen-lancamentos"];
 function showScreen(id){ SCREENS.forEach(s=>document.getElementById(s).classList.toggle("hidden", s!==id)); }
 function renderCrumbs(parts){
   const el = document.getElementById("crumbs");
@@ -430,6 +469,7 @@ function goHome(){ showScreen("screen-home"); renderCrumbs([]); }
 function goCadastro(which){
   if(which==="imoveis"){ renderImoveisTable(); showScreen("screen-cad-imoveis"); renderCrumbs([{label:"Imóveis"}]); }
   else if(which==="inquilinos"){ renderInquilinosTable(); showScreen("screen-cad-inquilinos"); renderCrumbs([{label:"Inquilinos"}]); }
+  else if(which==="aplicacoes"){ renderAplicacoesTable(); showScreen("screen-cad-aplicacoes"); renderCrumbs([{label:"Aplicações Financeiras"}]); }
   else { renderLocadorasTable(); showScreen("screen-cad-locadoras"); renderCrumbs([{label:"Locadoras"}]); }
 }
 function goIptu(){ renderIptuTable(); showScreen("screen-iptu"); renderCrumbs([{label:"Controle de IPTU"}]); }
@@ -497,22 +537,39 @@ const LOCADORAS_SEED = [
   {nome:"Toneto", contaTaxaAdm:21, keywords:["TONETO"]},
   {nome:"Rio Branco", contaTaxaAdm:750, keywords:["FRANCINE","RIO BRANCO"]},
 ];
-const LS_KEYS = {imoveis:"mantovani_imoveis", inquilinos:"mantovani_inquilinos", locadoras:"mantovani_locadoras", historico:"mantovani_historico"};
+// Código Domínio de cada aplicação (título do RDC) — pra saber que conta debitar no
+// lançamento do rendimento do mês. Inclui aplicações já encerradas (fica sem uso, sem
+// problema) além das ativas — assim que abrir uma nova aplicação, adiciona uma linha aqui.
+const APLICACOES_SEED = [
+  {titulo:"12402000627", conta:821}, {titulo:"12402000751", conta:822}, {titulo:"12402000796", conta:823},
+  {titulo:"12402001034", conta:825}, {titulo:"12402001116", conta:826}, {titulo:"12402001167", conta:827},
+  {titulo:"12402001219", conta:828}, {titulo:"12402001281", conta:829}, {titulo:"12402001345", conta:830},
+  {titulo:"12402001412", conta:817}, {titulo:"12402001488", conta:824}, {titulo:"12402001575", conta:832},
+  {titulo:"12402001719", conta:833}, {titulo:"15302000186", conta:834}, {titulo:"12402001893", conta:835},
+  {titulo:"12402001970", conta:836}, {titulo:"12402002049", conta:837}, {titulo:"15302000256", conta:838},
+  {titulo:"12402002228", conta:839}, {titulo:"12402002335", conta:840}, {titulo:"12402002430", conta:841},
+  {titulo:"18100000035", conta:842}, {titulo:"18100000083", conta:843}, {titulo:"18100000118", conta:844},
+  {titulo:"18100000153", conta:845}, {titulo:"17518001700", conta:859}, {titulo:"17518001849", conta:860},
+];
+const LS_KEYS = {imoveis:"mantovani_imoveis", inquilinos:"mantovani_inquilinos", locadoras:"mantovani_locadoras", aplicacoes:"mantovani_aplicacoes", historico:"mantovani_historico"};
 function loadList(key, seed){ const raw = localStorage.getItem(key); if(raw) return JSON.parse(raw); const seeded = seed.map(x=>({...x})); localStorage.setItem(key, JSON.stringify(seeded)); return seeded; }
 function saveImoveis(list){ localStorage.setItem(LS_KEYS.imoveis, JSON.stringify(list)); }
 function saveInquilinos(list){ localStorage.setItem(LS_KEYS.inquilinos, JSON.stringify(list)); }
 function saveLocadoras(list){ localStorage.setItem(LS_KEYS.locadoras, JSON.stringify(list)); }
+function saveAplicacoes(list){ localStorage.setItem(LS_KEYS.aplicacoes, JSON.stringify(list)); }
 function loadHistorico(){ const raw = localStorage.getItem(LS_KEYS.historico); return raw ? JSON.parse(raw) : {}; }
 function saveHistorico(h){ localStorage.setItem(LS_KEYS.historico, JSON.stringify(h)); }
 
 var imoveisDB = loadList(LS_KEYS.imoveis, IMOVEIS_SEED);
 var inquilinosDB = loadList(LS_KEYS.inquilinos, INQUILINOS_SEED);
 var locadorasDB = loadList(LS_KEYS.locadoras, LOCADORAS_SEED);
+var aplicacoesDB = loadList(LS_KEYS.aplicacoes, APLICACOES_SEED);
 var historicoDB = loadHistorico();
 
 function getImovelByConta(conta){ return imoveisDB.find(i=>Number(i.conta)===Number(conta)) || null; }
 function getInquilinoByConta(conta){ return inquilinosDB.find(i=>Number(i.conta)===Number(conta)) || null; }
 function getLocadora(nome){ return locadorasDB.find(l=>normalizeText(l.nome)===normalizeText(nome)) || null; }
+function getAplicacao(titulo){ return aplicacoesDB.find(a=>String(a.titulo).trim()===String(titulo).trim()) || null; }
 
 /* =========================================================================
    FILTRO + ORDENAÇÃO — genérico pras 3 tabelas de cadastro
@@ -521,6 +578,7 @@ function makeTableState(){ return {filter:"", sortCol:null, sortDir:1}; }
 let imoveisState = makeTableState();
 let inquilinosState = makeTableState();
 let locadorasState = makeTableState();
+let aplicacoesState = makeTableState();
 
 // Retorna [{row, idx}] filtrado/ordenado — idx é sempre o índice ORIGINAL no array
 // (usado nos onchange/onclick pra continuar editando o objeto certo mesmo com a lista
@@ -637,6 +695,25 @@ function renderLocadorasTable(){
 function updateLocadora(i, field, val){ locadorasDB[i][field] = (field==="contaTaxaAdm") ? (val.trim()===""?null:Number(val)) : val; saveLocadoras(locadorasDB); }
 function updateLocadoraKeywords(i, val){ locadorasDB[i].keywords = val.split(",").map(s=>s.trim()).filter(Boolean); saveLocadoras(locadorasDB); }
 function removeLocadora(i){ locadorasDB.splice(i,1); saveLocadoras(locadorasDB); renderLocadorasTable(); }
+
+/* ---- Tabela: Aplicações Financeiras ---- */
+function renderAplicacoesTable(){
+  const tbl = document.getElementById("aplicacoesTable");
+  const rows = filterSortIndexed(aplicacoesDB, aplicacoesState, r=>[r.titulo,r.conta]);
+  updateCount("aplicacoesCount", rows.length, aplicacoesDB.length);
+  tbl.innerHTML = `<thead><tr>
+      ${sortTh('aplicacoesState',aplicacoesState,'titulo','Título (nº da aplicação)','renderAplicacoesTable')}
+      ${sortTh('aplicacoesState',aplicacoesState,'conta','Conta Domínio','renderAplicacoesTable')}
+      <th></th></tr></thead><tbody>` +
+    rows.map(({row:r, idx:i})=>`<tr>
+      <td class="cell"><input class="cell-input wide" value="${r.titulo||''}" onchange="updateAplicacao(${i},'titulo',this.value)"></td>
+      <td class="cell"><input class="cell-input" style="width:80px" value="${r.conta??''}" onchange="updateAplicacao(${i},'conta',this.value)"></td>
+      <td><button class="btn small ghost" onclick="removeAplicacao(${i})">✕</button></td>
+    </tr>`).join("") + `</tbody>`;
+}
+function updateAplicacao(i, field, val){ aplicacoesDB[i][field] = (field==="conta") ? (val.trim()===""?null:Number(val)) : val.trim(); saveAplicacoes(aplicacoesDB); }
+function addAplicacaoRow(){ aplicacoesDB.push({titulo:"",conta:null}); saveAplicacoes(aplicacoesDB); renderAplicacoesTable(); }
+function removeAplicacao(i){ aplicacoesDB.splice(i,1); saveAplicacoes(aplicacoesDB); renderAplicacoesTable(); }
 
 /* =========================================================================
    CONTROLE DE IPTU — derivado de historicoDB (nada de cadastro manual)
@@ -1084,6 +1161,68 @@ function parseRioBranco(lines){
 }
 
 /* =========================================================================
+   PARSER — Demonstrativo de Aplicação Financeira (Unicred)
+   ========================================================================= */
+// O pdf.js expõe esse PDF de um jeito bem diferente dos outros: em vez de cada TÍTULO ser uma
+// linha, cada CAMPO (Rendimento Período, IR Retido etc.) é uma faixa horizontal com o valor de
+// TODOS os títulos lado a lado, na mesma ordem X da linha dos códigos de título — então não dá
+// pra juntar por linha (Y) como nos outros parsers, e sim casar cada valor pelo X do título.
+// Um valor pode sair com um Y levemente diferente dos vizinhos da mesma faixa (ex. o Saldo
+// Bruto final de um título resgatado no mês) — por isso a janela de Y é generosa (±22) mas o X
+// é bem estrito (±3), já que X é o que identifica o título de forma confiável aqui.
+function findTituloRow(items){
+  const cands = items.filter(it=>/^\d{11}$/.test(it.text.trim()));
+  if(!cands.length) return [];
+  const byY = {};
+  cands.forEach(it=>{ const y = Math.round(it.y); (byY[y]=byY[y]||[]).push(it); });
+  let bestArr = [];
+  Object.keys(byY).forEach(y=>{ if(byY[y].length>bestArr.length) bestArr = byY[y]; });
+  return bestArr.map(it=>({x:it.x, titulo:it.text.trim()})).sort((a,b)=>a.x-b.x);
+}
+function extractCampoPorTitulo(items, titulos, labelY, yWindow, xTol){
+  const candidatos = items.filter(it=>Math.abs(it.y-labelY)<=yWindow && /^-?[\d.]+,\d{2}$/.test(it.text.trim()));
+  const out = {};
+  titulos.forEach(t=>{
+    let best = null, bestDx = Infinity;
+    candidatos.forEach(it=>{
+      const dx = Math.abs(it.x-t.x);
+      if(dx<=xTol && dx<bestDx){ bestDx = dx; best = it; }
+    });
+    out[t.titulo] = best ? parseBRL(best.text) : null;
+  });
+  return out;
+}
+function findLabelY(items, palavra){
+  const hits = items.filter(it=>it.text.trim()===palavra);
+  if(!hits.length) return null;
+  return hits.sort((a,b)=>b.y-a.y)[0].y;
+}
+function parseAplicacaoFinanceira(itemsAllPages){
+  const linhas = [];
+  itemsAllPages.forEach(items=>{
+    const titulos = findTituloRow(items);
+    if(!titulos.length) return;
+    const yPeriodo = findLabelY(items, "Período");
+    const retidoYs = items.filter(it=>it.text.trim()==="Retido").map(it=>it.y).sort((a,b)=>b-a);
+    const yIRRetido = retidoYs[0];
+    const yPago = findLabelY(items, "Pago");
+    if(yPeriodo==null || yIRRetido==null || yPago==null) return; // layout inesperado — melhor não inventar valor
+    const rendPeriodo = extractCampoPorTitulo(items, titulos, yPeriodo-3, 22, 3);
+    const irRetido = extractCampoPorTitulo(items, titulos, yIRRetido-3, 22, 3);
+    const rendPago = extractCampoPorTitulo(items, titulos, yPago-3, 22, 3);
+    titulos.forEach(t=>{
+      linhas.push({
+        titulo: t.titulo,
+        rendimentoPeriodo: rendPeriodo[t.titulo]||0,
+        rendimentoPago: rendPago[t.titulo]||0,
+        irRetido: irRetido[t.titulo]||0,
+      });
+    });
+  });
+  return linhas;
+}
+
+/* =========================================================================
    MONTAGEM DE LINHA (um "aluguel recebido" = uma linha da tela de Lançamentos)
    ========================================================================= */
 function buildRow(repasse, inq, dataRecebimento){
@@ -1137,14 +1276,17 @@ const LANC_DOCS = [
   {key:"Cancian", label:"Repasse Cancian", desc:"", multiple:true},
   {key:"Casarão", label:"Repasse Casarão", desc:"", multiple:true},
   {key:"Rio Branco", label:"Repasse Rio Branco", desc:"", multiple:true},
+  {key:"aplicacao", label:"Demonstrativo de Aplicação Financeira", desc:"Rentabilidade do mês (Unicred) — opcional, gera o lançamento do rendimento e a NFS de resgate", multiple:false},
 ];
 let lancArquivos = {};
 function resetLancState(){
-  lancArquivos = {extrato:null, contasReceber:null, JK:[], Prisma:[], Toneto:[], Cancian:[], "Casarão":[], "Rio Branco":[]};
+  lancArquivos = {extrato:null, contasReceber:null, JK:[], Prisma:[], Toneto:[], Cancian:[], "Casarão":[], "Rio Branco":[], aplicacao:null};
   lancamentosRows = []; revisaoInquilino = []; parcelasCR = [];
+  aplicacaoRendimentos = []; aplicacaoResgates = []; aplicacaoNaoIdentificadas = [];
   document.getElementById("boxLancamentos").classList.add("hidden");
   document.getElementById("boxExportar").classList.add("hidden");
   document.getElementById("boxRevisao").classList.add("hidden");
+  document.getElementById("boxAplicacao").classList.add("hidden");
   document.getElementById("lancStatus").classList.add("hidden");
 }
 function renderDocGrid(){
@@ -1181,6 +1323,9 @@ function markDropDone(drop, label){ drop.classList.add("done"); drop.querySelect
 var lancamentosRows = [];
 var revisaoInquilino = [];
 var parcelasCR = [];
+var aplicacaoRendimentos = []; // [{titulo, conta, rendimentoPeriodo}]
+var aplicacaoResgates = [];    // [{titulo, conta, rendimentoPago, irRetido}]
+var aplicacaoNaoIdentificadas = []; // títulos sem conta cadastrada
 
 var REPASSE_PARSERS = {JK:parseRepasseJK, Prisma:parsePrisma, Toneto:parseToneto, Cancian:parseCancian, "Casarão":parseCasarao, "Rio Branco":parseRioBranco};
 
@@ -1240,9 +1385,26 @@ async function processarLancamentos(){
         }
       }
     }
+    aplicacaoRendimentos = []; aplicacaoResgates = []; aplicacaoNaoIdentificadas = [];
+    if(lancArquivos.aplicacao){
+      const itemsAllPages = (await extractPdfAllItems(lancArquivos.aplicacao)).flat();
+      const linhas = parseAplicacaoFinanceira(itemsAllPages);
+      linhas.forEach(l=>{
+        const apl = getAplicacao(l.titulo);
+        if(!apl || apl.conta==null){ aplicacaoNaoIdentificadas.push(l); return; }
+        if(Math.abs(l.rendimentoPeriodo)>0.004){
+          aplicacaoRendimentos.push({titulo:l.titulo, conta:apl.conta, rendimentoPeriodo:l.rendimentoPeriodo});
+        }
+        if(Math.abs(l.rendimentoPago)>0.004){
+          aplicacaoResgates.push({titulo:l.titulo, conta:apl.conta, rendimentoPago:l.rendimentoPago, irRetido:l.irRetido});
+        }
+      });
+    }
+
     status.classList.add("hidden");
     renderRevisaoInquilino();
     renderLancTable();
+    renderAplicacaoResultado();
     autoSalvarHistorico();
   }catch(err){
     status.classList.add("err"); status.textContent = "Erro: " + err.message;
@@ -1631,6 +1793,102 @@ function downloadLancMantovaniTxt(){
   avisarLotesDesbalanceados(lotes);
   const lines = rows.map(r=> r.map((v,i)=> i===3 ? fmtValorTxt(v) : (typeof v==="string"?stripAccents(v):v)).join(";"));
   downloadTextAnsi("entradas.txt", lines.join("\r\n"));
+}
+
+/* =========================================================================
+   APLICAÇÃO FINANCEIRA — lançamento do rendimento do mês + NFS de resgate
+   ========================================================================= */
+const CONTA_RENDA_APLICACAO = 397;
+function mesAtualRef(){ const dt = ultimoDiaUtilMesAtual(); return `${String(dt.m).padStart(2,"0")}/${dt.y}`; }
+function renderAplicacaoResultado(){
+  const box = document.getElementById("boxAplicacao");
+  const temAlgo = aplicacaoRendimentos.length || aplicacaoResgates.length || aplicacaoNaoIdentificadas.length;
+  box.classList.toggle("hidden", !temAlgo);
+  if(!temAlgo) return;
+  const mes = mesAtualRef();
+  let html = "";
+  if(aplicacaoNaoIdentificadas.length){
+    html += `<div class="help" style="color:var(--red);"><b>⚠ ${aplicacaoNaoIdentificadas.length} aplicação(ões) sem conta cadastrada</b> — cadastre o título na tela de Aplicações Financeiras e processe de novo: ${aplicacaoNaoIdentificadas.map(l=>l.titulo).join(", ")}</div>`;
+  }
+  if(aplicacaoRendimentos.length){
+    const total = aplicacaoRendimentos.reduce((s,r)=>s+r.rendimentoPeriodo,0);
+    html += `<div class="section-title">Rendimento do mês (${mes}) — lançamento C:${CONTA_RENDA_APLICACAO}</div>
+    <div class="summary-row"><div class="item"><div class="k">Total</div><div class="v">R$ ${fmtBRL(total)}</div></div></div>
+    <div class="table-wrap"><table class="preview"><thead><tr><th>Título</th><th>Conta (débito)</th><th>Rendimento Período</th></tr></thead><tbody>` +
+      aplicacaoRendimentos.map((r,i)=>`<tr>
+        <td>${r.titulo}</td>
+        <td class="cell"><input class="cell-input" style="width:70px" value="${r.conta}" onchange="aplicacaoRendimentos[${i}].conta=Number(this.value)"></td>
+        <td class="cell"><input class="cell-input num" value="${fmtBRL(r.rendimentoPeriodo)}" onchange="aplicacaoRendimentos[${i}].rendimentoPeriodo=parseBRL(this.value)||0"></td>
+      </tr>`).join("") + `</tbody></table></div>
+    <div class="btn-row">
+      <button class="btn" onclick="downloadAplicacaoRendimentoXlsx()">Lançamento Rendimento — .xlsx</button>
+      <button class="btn ghost" onclick="downloadAplicacaoRendimentoTxt()">Lançamento Rendimento — .txt</button>
+    </div>`;
+  }
+  if(aplicacaoResgates.length){
+    html += `<div class="section-title" style="margin-top:18px;">Resgate no mês — NFS (rendimento pago = valor da NF, IR = 15%)</div>
+    <div class="help">Confira <b>CNPJ</b>, <b>Acumulador</b> e <b>CFPS</b> antes de exportar — ainda não confirmados, saem em branco.</div>
+    <div class="table-wrap"><table class="preview"><thead><tr><th>Título</th><th>Conta</th><th>Rendimento Pago (Valor NF)</th><th>IR Retido (15%)</th></tr></thead><tbody>` +
+      aplicacaoResgates.map((r,i)=>`<tr>
+        <td>${r.titulo}</td>
+        <td class="cell"><input class="cell-input" style="width:70px" value="${r.conta}" onchange="aplicacaoResgates[${i}].conta=Number(this.value)"></td>
+        <td class="cell"><input class="cell-input num" value="${fmtBRL(r.rendimentoPago)}" onchange="aplicacaoResgates[${i}].rendimentoPago=parseBRL(this.value)||0"></td>
+        <td class="cell"><input class="cell-input num" value="${fmtBRL(r.irRetido)}" onchange="aplicacaoResgates[${i}].irRetido=parseBRL(this.value)||0"></td>
+      </tr>`).join("") + `</tbody></table></div>
+    <div class="btn-row">
+      <button class="btn" onclick="downloadAplicacaoResgateXlsx()">NFS Resgate — .xlsx</button>
+      <button class="btn ghost" onclick="downloadAplicacaoResgateTxt()">NFS Resgate — .txt</button>
+    </div>`;
+  }
+  box.innerHTML = html;
+}
+function buildAplicacaoLote(){
+  const mes = mesAtualRef();
+  const dt = ultimoDiaUtilMesAtual();
+  const total = aplicacaoRendimentos.reduce((s,r)=>s+r.rendimentoPeriodo,0);
+  const entries = [{debito:null, credito:CONTA_RENDA_APLICACAO, valor:total, hist:`VALOR REF. RENDIMENTO DE APLICAÇÃO FINANCEIRA ${mes}`, iniciaLote:1}];
+  aplicacaoRendimentos.forEach(r=>{
+    entries.push({debito:r.conta, credito:null, valor:r.rendimentoPeriodo, hist:`VALOR REF. RENDIMENTO DA APLICACAO FINANCEIRA Nº ${r.titulo} ${mes}`});
+  });
+  const somaDebito = entries.reduce((s,e)=>s+(e.debito!=null?e.valor:0),0);
+  const somaCredito = entries.reduce((s,e)=>s+(e.credito!=null?e.valor:0),0);
+  return {data:dt, entries, balanceado: Math.abs(somaDebito-somaCredito)<0.02, somaDebito, somaCredito};
+}
+function downloadAplicacaoRendimentoXlsx(){
+  const lote = buildAplicacaoLote();
+  const rows = lote.entries.map(e=>lancMantEntryArray(e, lote.data));
+  downloadXlsx("Lancamento Rendimento Aplicacao.xlsx", [LANC_MANT_HEADER, ...rows], "Lancamento");
+}
+function downloadAplicacaoRendimentoTxt(){
+  const lote = buildAplicacaoLote();
+  if(!lote.balanceado){ alert(`Lote de rendimento com Débito (R$ ${fmtBRL(lote.somaDebito)}) ≠ Crédito (R$ ${fmtBRL(lote.somaCredito)}) — confira antes de importar.`); }
+  const rows = lote.entries.map(e=>lancMantEntryArray(e, lote.data));
+  const lines = rows.map(r=> r.map((v,i)=> i===3 ? fmtValorTxt(v) : (typeof v==="string"?stripAccents(v):v)).join(";"));
+  downloadTextAnsi("rendimento_aplicacao.txt", lines.join("\r\n"));
+}
+// Mesmo leiaute NFS de 28 colunas usado no Mantovani (NFS) — CNPJ/Acumulador/CFPS ficam em
+// branco até confirmar com o usuário (ver help da tela), pra não sair errado numa nota fiscal.
+function aplicacaoResgateRowArray(r){
+  const row = new Array(28).fill("");
+  const dt = ultimoDiaUtilMesAtual();
+  row[5] = ""; // Número Documento — preenche manualmente
+  row[6] = "U"; // Série
+  row[7] = fmtDateBR(dt);
+  row[8] = 0; // Situação
+  row[9] = ""; // Acumulador — confirmar
+  row[10] = ""; // CFPS — confirmar
+  row[11] = r.rendimentoPago; // Valor Serviços = valor da NF
+  row[14] = r.rendimentoPago; // Valor Contábil
+  row[19] = r.irRetido; // Valor IRRF
+  return row;
+}
+function downloadAplicacaoResgateXlsx(){
+  downloadXlsx("NFS Resgate Aplicacao.xlsx", [MANTOVANI_HEADER, ...aplicacaoResgates.map(aplicacaoResgateRowArray)], "NFS");
+}
+function downloadAplicacaoResgateTxt(){
+  const moneyIdx = [11,14,19];
+  const lines = aplicacaoResgates.map(r=> aplicacaoResgateRowArray(r).map((v,i)=> moneyIdx.includes(i) ? fmtValorTxt(v) : (typeof v==="string"?stripAccents(v):v)).join(";"));
+  downloadTextAnsi("NFSResgateAplicacao.txt", lines.join("\r\n"));
 }
 </script>
 </body>
