@@ -1681,7 +1681,10 @@ function mantovaniRowArray(r){
   const row = new Array(28).fill("");
   const dt = ultimoDiaUtilMesAtual();
   const inq = inquilinosDB.find(i=>i.conta===r.conta);
-  row[0] = inq ? inq.cpf : "";
+  // Sempre só dígitos — o cadastro tem CPF gravado em formatos diferentes (com ou sem
+  // pontuação, dependendo de como foi digitado/importado) e o Domínio precisa de um formato
+  // único e consistente pra achar o cliente na importação.
+  row[0] = inq ? cpfDigits(inq.cpf) : "";
   row[5] = r.numeroDocumento || ""; // Número Documento — editável na tela de Lançamentos
   row[6] = "U";  // Série
   row[7] = fmtDateBR(dt);
@@ -1729,7 +1732,7 @@ function buildBaixasRows(){
     const divergente = !!(parcela && Math.abs(parcela.valorParcela - row.valorBruto) > 0.01);
     return {
       numeroNota: parcela ? parcela.documento : "",
-      cpf: inq ? inq.cpf : "",
+      cpf: inq ? cpfDigits(inq.cpf) : "",
       dataVencimento: parcela ? parcela.vencimento : null,
       dataBaixa: row.dataRecebimento,
       valorRecebido: parcela ? parcela.valorParcela : (row.valorBruto||0),
