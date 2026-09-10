@@ -1703,11 +1703,16 @@ function downloadMantovaniTxt(){
 /* =========================================================================
    EXPORTAÇÃO 2 — Baixas de Serviços (casa com Contas a Receber do Domínio)
    ========================================================================= */
-function matchParcela(inq){
+function matchParcela(inq, valorBruto){
   if(!inq || inq.codCliente==null) return null;
   const candidatos = parcelasCR.filter(p=>p.codCliente===inq.codCliente && p.situacao==="Aberta" && !p._consumida);
   candidatos.sort((a,b)=>(dateVal(a.vencimento)||0)-(dateVal(b.vencimento)||0));
-  return candidatos[0] || null;
+  // A baixa é feita pelo valor bruto recebido — quando o cliente tem mais de uma parcela em
+  // aberto (meses diferentes, valores diferentes por causa de reajuste), a mais antiga nem
+  // sempre é a que está sendo paga agora. Prioriza a parcela cujo valor bate com o recebido;
+  // só cai pra "mais antiga aberta" (e marca divergência) se nenhuma bater exato.
+  const porValor = candidatos.find(p=>Math.abs(p.valorParcela-(valorBruto||0))<0.01);
+  return porValor || candidatos[0] || null;
 }
 function buildBaixasRows(){
   parcelasCR.forEach(p=>{ p._consumida = false; });
@@ -1719,7 +1724,7 @@ function buildBaixasRows(){
   const ordered = [...comAluguel].sort((a,b)=>(dateVal(a.dataRecebimento)||0)-(dateVal(b.dataRecebimento)||0));
   return ordered.map(row=>{
     const inq = inquilinosDB.find(i=>i.conta===row.conta);
-    const parcela = matchParcela(inq);
+    const parcela = matchParcela(inq, row.valorBruto);
     if(parcela) parcela._consumida = true;
     const divergente = !!(parcela && Math.abs(parcela.valorParcela - row.valorBruto) > 0.01);
     return {
