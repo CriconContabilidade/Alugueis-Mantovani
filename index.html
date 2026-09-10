@@ -1260,7 +1260,10 @@ function buildRow(repasse, inq, dataRecebimento){
   if(!repasse.avulso && !row.aluguelContrato && inq && inq.aluguelContrato) row.aluguelContrato = inq.aluguelContrato;
   row.valorBruto = row.aluguelContrato - row.descontoReajuste;
   row.observacao = row.observacao.join("; ");
-  if(!dataRecebimento) row.flag = true;
+  if(!dataRecebimento){
+    row.flag = true;
+    row.observacao = (row.observacao ? row.observacao+"; " : "") + "Data de recebimento não encontrada no extrato — confira/preencha manualmente.";
+  }
   return row;
 }
 
@@ -1461,6 +1464,9 @@ function resolverRevisaoInquilino(i, contaStr){
   row.conta = inq.conta; row.cliente = inq.cliente; row.imovel = inq.imovel;
   if(!row.avulso && !row.aluguelContrato && inq.aluguelContrato) row.aluguelContrato = inq.aluguelContrato;
   row.flag = !row.dataRecebimento;
+  if(row.flag){
+    row.observacao = (row.observacao ? row.observacao+"; " : "") + "Data de recebimento não encontrada no extrato — confira/preencha manualmente.";
+  }
   revisaoInquilino.splice(i,1);
   renderRevisaoInquilino();
   renderLancTable();
