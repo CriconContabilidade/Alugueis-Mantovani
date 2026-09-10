@@ -1836,7 +1836,17 @@ function buildLancMantovaniLotes(){
     });
     const sum = f=>g.rows.reduce((s,r)=>s+(r[f]||0),0);
     const add = (debito, credito, valor, hist)=>{ if(Math.abs(valor)>0.004) entries.push({debito, credito, valor:Math.abs(valor), hist}); };
-    add(loc?loc.contaTaxaAdm:null, null, sum('taxaAdm'), `VALOR REF. DESCONTO DE TAXA ADMINISTRATIVA DA ${nomeLoc} NO REPASSE ${comp}`);
+    if(g.locadora==="JK"){
+      // Taxa administrativa da JK em linha separada por inquilino (em vez de uma soma só) —
+      // pedido explícito do usuário, pra facilitar identificar quais NFs de taxa ainda faltam
+      // emitir. Mês usado no histórico é a competência do aluguel (já é o mês anterior ao
+      // repasse, ex. aluguel de agosto recebido em setembro).
+      g.rows.forEach(r=>{
+        add(loc?loc.contaTaxaAdm:null, null, r.taxaAdm||0, `VALOR REF. DESCONTO DE TAXA ADMINISTRATIVA NO REPASSE - ${(r.cliente||"").toUpperCase()} ${r.comp||comp}`);
+      });
+    } else {
+      add(loc?loc.contaTaxaAdm:null, null, sum('taxaAdm'), `VALOR REF. DESCONTO DE TAXA ADMINISTRATIVA DA ${nomeLoc} NO REPASSE ${comp}`);
+    }
     add(778, null, sum('fundoReserva'), `VALOR REF. DESCONTO DE FUNDO DE RESERVA DA ${nomeLoc} NO REPASSE ${comp}`);
     add(null, 791, sum('iptuRessarcido791'), `VALOR REF. ESTORNO DE IPTU DA ${nomeLoc} NO REPASSE ${comp}`);
     add(747, null, sum('iptuPago747'), `VALOR REF. IPTU PAGO NO REPASSE DA ${nomeLoc} ${comp}`);
