@@ -1944,7 +1944,7 @@ function downloadAplicacaoRendimentoTxt(){
   if(!lote.balanceado){ alert(`Lote de rendimento com Débito (R$ ${fmtBRL(lote.somaDebito)}) ≠ Crédito (R$ ${fmtBRL(lote.somaCredito)}) — confira antes de importar.`); }
   const rows = lote.entries.map(e=>lancMantEntryArray(e, lote.data));
   const lines = rows.map(r=> r.map((v,i)=> i===3 ? fmtValorTxt(v) : (typeof v==="string"?stripAccents(v):v)).join(";"));
-  downloadTextAnsi("rendimento_aplicacao.txt", lines.join("\r\n"));
+  downloadTextAnsi("lanctos.txt", lines.join("\r\n"));
 }
 // Mesmo leiaute NFS de 28 colunas usado no Mantovani (NFS) — CNPJ/Acumulador/CFPS ficam em
 // branco até confirmar com o usuário (ver help da tela), pra não sair errado numa nota fiscal.
@@ -1970,7 +1970,7 @@ function downloadAplicacaoResgateXlsx(){
 function downloadAplicacaoResgateTxt(){
   const moneyIdx = [11,14,19];
   const lines = aplicacaoResgates.map(r=> aplicacaoResgateRowArray(r).map((v,i)=> moneyIdx.includes(i) ? fmtValorTxt(v) : (typeof v==="string"?stripAccents(v):v)).join(";"));
-  downloadTextAnsi("NFSResgateAplicacao.txt", lines.join("\r\n"));
+  downloadTextAnsi("ServicoPrest.txt", lines.join("\r\n"));
 }
 
 /* =========================================================================
