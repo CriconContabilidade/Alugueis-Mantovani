@@ -1213,6 +1213,21 @@ function findLabelY(items, palavra){
   if(!hits.length) return null;
   return hits.sort((a,b)=>b.y-a.y)[0].y;
 }
+// Data de referência do relatório (linha "Valores em DD/MM/AAAA") — o lançamento de
+// rendimento tem que ser no ÚLTIMO DIA DO MÊS DO RELATÓRIO, não no mês em que o usuário
+// processa (o processamento sempre atrasa um pouco, geralmente pro início do mês seguinte).
+function findDataReferenciaAplicacao(itemsAllPages){
+  for(const items of itemsAllPages){
+    const byY = {};
+    items.forEach(it=>{ const y = Math.round(it.y); (byY[y]=byY[y]||[]).push(it); });
+    for(const y of Object.keys(byY)){
+      const line = byY[y].sort((a,b)=>a.x-b.x).map(it=>it.text).join(" ");
+      const m = line.match(/Valores em\s*(\d{2}\/\d{2}\/\d{4})/i);
+      if(m) return brDateToParts(m[1]);
+    }
+  }
+  return null;
+}
 function parseAplicacaoFinanceira(itemsAllPages){
   const linhas = [];
   itemsAllPages.forEach(items=>{
@@ -1350,6 +1365,7 @@ var parcelasCR = [];
 var aplicacaoRendimentos = []; // [{titulo, conta, rendimentoPeriodo}]
 var aplicacaoResgates = [];    // [{titulo, conta, rendimentoPago, irRetido}]
 var aplicacaoNaoIdentificadas = []; // títulos sem conta cadastrada
+var aplicacaoDataReferencia = null; // {y,m,d} — "Valores em" do relatório; null até processar
 
 var REPASSE_PARSERS = {JK:parseRepasseJK, Prisma:parsePrisma, Toneto:parseToneto, Cancian:parseCancian, "Casarão":parseCasarao, "Rio Branco":parseRioBranco};
 
@@ -1444,9 +1460,10 @@ async function processarLancamentos(){
         });
       }
     }
-    aplicacaoRendimentos = []; aplicacaoResgates = []; aplicacaoNaoIdentificadas = [];
+    aplicacaoRendimentos = []; aplicacaoResgates = []; aplicacaoNaoIdentificadas = []; aplicacaoDataReferencia = null;
     if(lancArquivos.aplicacao){
       const itemsAllPages = await extractPdfAllItems(lancArquivos.aplicacao);
+      aplicacaoDataReferencia = findDataReferenciaAplicacao(itemsAllPages);
       const linhas = parseAplicacaoFinanceira(itemsAllPages);
       linhas.forEach(l=>{
         const apl = getAplicacao(l.titulo);
@@ -1893,7 +1910,7 @@ function downloadLancMantovaniTxt(){
    APLICAÇÃO FINANCEIRA — lançamento do rendimento do mês + NFS de resgate
    ========================================================================= */
 const CONTA_RENDA_APLICACAO = 397;
-function mesAtualRef(){ const dt = ultimoDiaUtilMesAtual(); return `${String(dt.m).padStart(2,"0")}/${dt.y}`; }
+function mesAtualRef(){ const dt = aplicacaoDataReferencia || ultimoDiaUtilMesAtual(); return `${String(dt.m).padStart(2,"0")}/${dt.y}`; }
 function renderAplicacaoResultado(){
   const box = document.getElementById("boxAplicacao");
   const temAlgo = aplicacaoRendimentos.length || aplicacaoResgates.length || aplicacaoNaoIdentificadas.length;
@@ -1940,7 +1957,7 @@ function renderAplicacaoResultado(){
 }
 function buildAplicacaoLote(){
   const mes = mesAtualRef();
-  const dt = ultimoDiaUtilMesAtual();
+  const dt = aplicacaoDataReferencia || ultimoDiaUtilMesAtual();
   const total = aplicacaoRendimentos.reduce((s,r)=>s+r.rendimentoPeriodo,0);
   const entries = [{debito:null, credito:CONTA_RENDA_APLICACAO, valor:total, hist:`VALOR REF. RENDIMENTO DE APLICAÇÃO FINANCEIRA ${mes}`, iniciaLote:1}];
   aplicacaoRendimentos.forEach(r=>{
@@ -1967,9 +1984,10 @@ function downloadAplicacaoRendimentoTxt(){
 const CNPJ_UNICRED = "00.075.847/0001-35";
 function aplicacaoResgateRowArray(r){
   const row = new Array(28).fill("");
-  // Data real do resgate (achada no extrato) — só cai no último dia útil do mês como último
-  // recurso, se não achou a linha "RESGATE APLICACAO FINANCEIRA" correspondente no extrato.
-  const dt = r.dataResgate || ultimoDiaUtilMesAtual();
+  // Data real do resgate (achada no extrato) — só cai na data de referência do relatório (ou,
+  // na falta dela, no último dia útil do mês do processamento) como último recurso, se não
+  // achou a linha "RESGATE APLICACAO FINANCEIRA" correspondente no extrato.
+  const dt = r.dataResgate || aplicacaoDataReferencia || ultimoDiaUtilMesAtual();
   row[0] = CNPJ_UNICRED;
   row[5] = r.numeroDocumento || ""; // Número Documento — editável na tela de Aplicação Financeira
   row[6] = "U"; // Série
