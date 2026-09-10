@@ -1864,7 +1864,7 @@ function downloadLancMantovaniTxt(){
   const {lotes, rows} = lancMantAoA();
   avisarLotesDesbalanceados(lotes);
   const lines = rows.map(r=> r.map((v,i)=> i===3 ? fmtValorTxt(v) : (typeof v==="string"?stripAccents(v):v)).join(";"));
-  downloadTextAnsi("entradas.txt", lines.join("\r\n"));
+  downloadTextAnsi("lanctos.txt", lines.join("\r\n"));
 }
 
 /* =========================================================================
