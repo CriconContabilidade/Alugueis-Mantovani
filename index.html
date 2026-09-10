@@ -265,6 +265,7 @@ code{background:var(--paper);padding:1px 5px;border-radius:3px;font-family:'IBM 
 
     <div id="boxLancamentos" class="card hidden">
       <div class="section-title">Lançamentos do mês</div>
+      <div class="table-toolbar"><input type="search" placeholder="Filtrar..." oninput="lancamentosState.filter=this.value; renderLancTable();"><span class="count" id="lancamentosCount"></span></div>
       <div id="lancamentosResult"></div>
     </div>
 
@@ -579,6 +580,7 @@ let imoveisState = makeTableState();
 let inquilinosState = makeTableState();
 let locadorasState = makeTableState();
 let aplicacoesState = makeTableState();
+let lancamentosState = makeTableState();
 
 // Retorna [{row, idx}] filtrado/ordenado — idx é sempre o índice ORIGINAL no array
 // (usado nos onchange/onclick pra continuar editando o objeto certo mesmo com a lista
@@ -824,7 +826,9 @@ function classificarItem(descRaw, valorComSinal){
   if(/BONIFICA/.test(d)) return "desconto381";
   if(/FUNDO DE RESERVA/.test(d)) return "fundoreserva778";
   if(/IPTU/.test(d)) return valorComSinal>=0 ? "iptuRessarcido791" : "iptuPago747";
-  if(/CHAM\.?\s*(ADA)?\.?\s*EXTRA/.test(d) || /CONDOMIN/.test(d)) return "cond341";
+  // "Chamada Extra"/"Condomínio" às vezes vêm abreviados tipo "C.Extra"/"Cond." (visto na JK
+  // em 08/2026, mesmo código avulso 976 usado tanto pra chamada extra quanto pra condomínio)
+  if(/CHAM\.?\s*(ADA)?\.?\s*EXTRA/.test(d) || /\bC\.?\s*EXTRA\b/.test(d) || /CONDOMIN/.test(d) || /\bCOND\.?\b/.test(d)) return "cond341";
   if(/TAXA\s*(DE)?\s*ADMINISTRA/.test(d) || /HONOR[AÁ]RIOS/.test(d)) return "taxaAdm";
   if(/MULTA/.test(d) || /\bJUROS\b/.test(d)) return "juros394";
   if(/TARIFA/.test(d) || /TAXAS? TRANSF/.test(d) || /TAXA BANC/.test(d)) return "despBancaria384";
@@ -1513,13 +1517,33 @@ lancamentosRows.forEach(r => {
   totais.cofins += (Number(r.valorBruto) || 0) * 0.03;
 });
 
-let html = `<div class="help">O <b>Nº Doc. NFS</b> é o número da nota que você gera no Domínio — preencha aqui pra ele já sair certo na planilha Mantovani (NFS); se ficar em branco, a exportação também sai em branco pra você completar depois.</div>
+const rows = filterSortIndexed(lancamentosRows, lancamentosState, r=>[r.locadora,r.cliente,r.numeroDocumento,r.imovel,r.comp,r.observacao]);
+  updateCount("lancamentosCount", rows.length, lancamentosRows.length);
+  let html = `<div class="help">O <b>Nº Doc. NFS</b> é o número da nota que você gera no Domínio — preencha aqui pra ele já sair certo na planilha Mantovani (NFS); se ficar em branco, a exportação também sai em branco pra você completar depois. Clique no nome de uma coluna pra ordenar por ela.</div>
   <div class="table-wrap"><table class="preview"><thead><tr>
-    <th>Locadora</th><th>Cliente</th><th>Nº Doc. NFS</th><th>Imóvel</th><th>Aluguel Contrato</th><th>Desc.Reajuste</th><th>Comp.</th><th>Valor Bruto</th>
-    <th>Taxa Adm</th><th>Fundo Reserva</th><th>IPTU (791)</th><th>IPTU (747)</th><th>Cond./ChExtra</th><th>Juros Rec.</th>
-    <th>Desp.Banc.</th><th>Manutenção</th><th>Seguro</th><th>Valor Líquido</th><th>Data Receb.</th><th>PIS</th><th>COFINS</th><th>Observação</th><th></th>
+    ${sortTh('lancamentosState',lancamentosState,'locadora','Locadora','renderLancTable')}
+    ${sortTh('lancamentosState',lancamentosState,'cliente','Cliente','renderLancTable')}
+    ${sortTh('lancamentosState',lancamentosState,'numeroDocumento','Nº Doc. NFS','renderLancTable')}
+    ${sortTh('lancamentosState',lancamentosState,'imovel','Imóvel','renderLancTable')}
+    ${sortTh('lancamentosState',lancamentosState,'aluguelContrato','Aluguel Contrato','renderLancTable')}
+    ${sortTh('lancamentosState',lancamentosState,'descontoReajuste','Desc.Reajuste','renderLancTable')}
+    ${sortTh('lancamentosState',lancamentosState,'comp','Comp.','renderLancTable')}
+    ${sortTh('lancamentosState',lancamentosState,'valorBruto','Valor Bruto','renderLancTable')}
+    ${sortTh('lancamentosState',lancamentosState,'taxaAdm','Taxa Adm','renderLancTable')}
+    ${sortTh('lancamentosState',lancamentosState,'fundoReserva','Fundo Reserva','renderLancTable')}
+    ${sortTh('lancamentosState',lancamentosState,'iptuRessarcido791','IPTU (791)','renderLancTable')}
+    ${sortTh('lancamentosState',lancamentosState,'iptuPago747','IPTU (747)','renderLancTable')}
+    ${sortTh('lancamentosState',lancamentosState,'condChamExtra','Cond./ChExtra','renderLancTable')}
+    ${sortTh('lancamentosState',lancamentosState,'jurosRec','Juros Rec.','renderLancTable')}
+    ${sortTh('lancamentosState',lancamentosState,'despBancaria','Desp.Banc.','renderLancTable')}
+    ${sortTh('lancamentosState',lancamentosState,'manutencao','Manutenção','renderLancTable')}
+    ${sortTh('lancamentosState',lancamentosState,'seguro','Seguro','renderLancTable')}
+    ${sortTh('lancamentosState',lancamentosState,'valorLiquido','Valor Líquido','renderLancTable')}
+    <th>Data Receb.</th><th>PIS</th><th>COFINS</th>
+    ${sortTh('lancamentosState',lancamentosState,'observacao','Observação','renderLancTable')}
+    <th></th>
   </tr></thead><tbody>`;
-  lancamentosRows.forEach((r,i)=>{
+  rows.forEach(({row:r, idx:i})=>{
     const pis = (r.valorBruto||0) * 0.0065, cofins = (r.valorBruto||0) * 0.03;
     html += `<tr class="${r.flag?'flag':''}">
       <td>${r.locadora||""}</td>
@@ -1898,6 +1922,51 @@ function downloadAplicacaoResgateTxt(){
   const lines = aplicacaoResgates.map(r=> aplicacaoResgateRowArray(r).map((v,i)=> moneyIdx.includes(i) ? fmtValorTxt(v) : (typeof v==="string"?stripAccents(v):v)).join(";"));
   downloadTextAnsi("NFSResgateAplicacao.txt", lines.join("\r\n"));
 }
+
+/* =========================================================================
+   NAVEGAÇÃO POR TECLADO NAS TABELAS — seta cima/baixo/esquerda/direita + Enter
+   trocam de campo como no Excel (padrão de todas as ferramentas do Hub)
+   ========================================================================= */
+document.addEventListener("keydown", function(e){
+  const teclasNav = ["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Enter"];
+  if(!teclasNav.includes(e.key)) return;
+  const alvo = e.target;
+  if(!alvo.matches || !alvo.matches("input, select, textarea")) return;
+  if(alvo.tagName==="TEXTAREA" && e.key==="Enter") return;
+  const lateral = e.key==="ArrowLeft" || e.key==="ArrowRight";
+  if(lateral && alvo.tagName!=="SELECT"){
+    const noInicio = alvo.selectionStart===0;
+    const noFim = alvo.selectionEnd===alvo.value.length;
+    if(e.key==="ArrowLeft" && !noInicio) return;
+    if(e.key==="ArrowRight" && !noFim) return;
+  }
+  const celula = alvo.closest("td, th");
+  if(!celula) return;
+  const linha = celula.parentElement;
+  let celulaAlvo;
+  if(lateral){
+    const celulas = Array.prototype.filter.call(linha.children, c => c.tagName==="TD" || c.tagName==="TH");
+    let idx = celulas.indexOf(celula);
+    do{
+      idx += e.key==="ArrowLeft" ? -1 : 1;
+      celulaAlvo = celulas[idx];
+    } while(celulaAlvo && !celulaAlvo.querySelector("input, select, textarea"));
+  } else {
+    const indiceCelula = Array.prototype.indexOf.call(linha.children, celula);
+    const corpo = linha.parentElement;
+    const linhas = Array.prototype.filter.call(corpo.children, l => l.tagName==="TR");
+    const indiceLinha = linhas.indexOf(linha);
+    const linhaAlvo = e.key==="ArrowUp" ? linhas[indiceLinha-1] : linhas[indiceLinha+1];
+    if(!linhaAlvo) return;
+    celulaAlvo = linhaAlvo.children[indiceCelula];
+  }
+  if(!celulaAlvo) return;
+  const campo = celulaAlvo.querySelector("input, select, textarea");
+  if(!campo) return;
+  e.preventDefault();
+  campo.focus();
+  if(campo.select) campo.select();
+});
 </script>
 </body>
 </html>
