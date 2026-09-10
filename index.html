@@ -1243,7 +1243,7 @@ function parseAplicacaoFinanceira(itemsAllPages){
    ========================================================================= */
 function buildRow(repasse, inq, dataRecebimento){
   const row = {
-    _repasseRef: repasse.ref, avulso: !!repasse.avulso, locadora: repasse._locadoraNome,
+    _repasseRef: repasse.ref, avulso: !!repasse.avulso, semEmissao: !!repasse.semEmissao, locadora: repasse._locadoraNome,
     conta: inq?inq.conta:null, cliente: inq?inq.cliente:(repasse.nome||"(não identificado)"),
     imovel: inq?inq.imovel:(repasse.imovelDesc||""),
     aluguelContrato:0, descontoReajuste:0, comp:"",
@@ -1262,7 +1262,10 @@ function buildRow(repasse, inq, dataRecebimento){
     else if(tipo==="fundoreserva778") row.fundoReserva += Math.abs(it.valor);
     else if(tipo==="iptuRessarcido791") row.iptuRessarcido791 += Math.abs(it.valor);
     else if(tipo==="iptuPago747") row.iptuPago747 += Math.abs(it.valor);
-    else if(tipo==="cond341") row.condChamExtra += Math.abs(it.valor);
+    // Mantém o sinal (não usa Math.abs) — condomínio/chamada extra às vezes é desconto (ex.
+    // JK cobrando chamada extra: valor negativo, vai pra débito) e às vezes é ressarcimento
+    // (ex. Toneto: inquilino devolvendo condomínio, valor positivo, vai pra crédito).
+    else if(tipo==="cond341") row.condChamExtra += it.valor;
     else if(tipo==="taxaAdm") row.taxaAdm += Math.abs(it.valor);
     else if(tipo==="juros394") row.jurosRec += it.valor;
     else if(tipo==="despBancaria384") row.despBancaria += Math.abs(it.valor);
@@ -1272,8 +1275,10 @@ function buildRow(repasse, inq, dataRecebimento){
   });
   // Só preenche o Aluguel Contrato pelo cadastro quando a linha É de fato um recebimento de
   // aluguel sem o item "Aluguel" reconhecido — nunca pra avulsos (condomínio/multa avulsos
-  // não têm nada a ver com o valor do aluguel do contrato, isso inflaria o valor bruto).
-  if(!repasse.avulso && !row.aluguelContrato && inq && inq.aluguelContrato) row.aluguelContrato = inq.aluguelContrato;
+  // não têm nada a ver com o valor do aluguel do contrato, isso inflaria o valor bruto) nem
+  // pra contrato "SEM EMISSÃO" que só recebeu um avulso mesclado (ex. Luciano em 08/2026: sem
+  // aluguel real nesse repasse, só a multa/condomínio do mesmo imóvel juntada na linha dele).
+  if(!repasse.avulso && !repasse.semEmissao && !row.aluguelContrato && inq && inq.aluguelContrato) row.aluguelContrato = inq.aluguelContrato;
   row.valorBruto = row.aluguelContrato - row.descontoReajuste;
   row.observacao = row.observacao.join("; ");
   if(!dataRecebimento){
@@ -1368,40 +1373,61 @@ async function processarLancamentos(){
       const files = lancArquivos[locNome] || [];
       if(!files.length) continue;
       const loc = getLocadora(locNome);
+      if(locNome !== "Rio Branco"){
+        // Cada PDF anexado pode ser um repasse (depósito) separado no banco, OU vários PDFs
+        // juntos podem ter caído num único depósito combinado (comum na Toneto, que às vezes
+        // manda um PDF por contrato mas transfere vários de uma vez só) — tenta primeiro casar
+        // cada arquivo sozinho contra o extrato; o que sobrar sem bater, tenta de novo somando
+        // TODOS os arquivos que sobraram contra uma única linha do extrato ainda não usada.
+        const porArquivo = [];
+        for(const file of files){
+          const lines = (await extractPdfAllLines(file)).flat();
+          const repasses = REPASSE_PARSERS[locNome](lines);
+          repasses.forEach(r=>r._locadoraNome = locNome);
+          const pdfTotal = repasses.reduce((s,r)=>s+r.itens.reduce((s2,i)=>s2+i.valor,0),0);
+          porArquivo.push({repasses, pdfTotal});
+        }
+        const semBater = [];
+        porArquivo.forEach(pa=>{
+          const txn = txns.find(t=>!t._used && loc && loc.keywords.some(k=>normalizeText(t.descricao).includes(normalizeText(k))) && Math.abs(Math.abs(t.valor)-pa.pdfTotal)<0.01);
+          if(txn){ txn._used = true; pa.repasses.forEach(r=>finalizeRepasse(r, txn.data)); }
+          else semBater.push(pa);
+        });
+        if(semBater.length){
+          const totalCombinado = semBater.reduce((s,pa)=>s+pa.pdfTotal,0);
+          const txn = txns.find(t=>!t._used && loc && loc.keywords.some(k=>normalizeText(t.descricao).includes(normalizeText(k))) && Math.abs(Math.abs(t.valor)-totalCombinado)<0.01);
+          if(txn) txn._used = true;
+          semBater.forEach(pa=> pa.repasses.forEach(r=>finalizeRepasse(r, txn?txn.data:null)));
+        }
+        continue;
+      }
       for(const file of files){
         const lines = (await extractPdfAllLines(file)).flat();
         const repasses = REPASSE_PARSERS[locNome](lines);
         repasses.forEach(r=>r._locadoraNome = locNome);
-        if(locNome === "Rio Branco"){
-          const semBaterExato = [];
-          repasses.forEach(r=>{
-            const txn = txns.find(t=>!t._used && loc && loc.keywords.some(k=>normalizeText(t.descricao).includes(normalizeText(k))) && Math.abs(Math.abs(t.valor)-r.totalDep)<0.01);
-            if(txn){ txn._used = true; finalizeRepasse(r, txn.data); }
-            else semBaterExato.push(r);
-          });
-          // Não bateu valor exato — comum quando o relatório da Rio Branco usado é de um mês
-          // anterior (ela ainda não mandou o do mês atual) e o total ficou um pouco diferente
-          // do que caiu no banco. Em vez de deixar sem data de recebimento, casa pelo valor
-          // mais próximo entre o que sobrou de linha do extrato dela e avisa na observação.
-          semBaterExato.forEach(r=>{
-            const candidatos = txns.filter(t=>!t._used && loc && loc.keywords.some(k=>normalizeText(t.descricao).includes(normalizeText(k))));
-            candidatos.sort((a,b)=>Math.abs(Math.abs(a.valor)-r.totalDep) - Math.abs(Math.abs(b.valor)-r.totalDep));
-            const txn = candidatos[0];
-            if(txn) txn._used = true;
-            finalizeRepasse(r, txn?txn.data:null);
-            if(txn){
-              const diff = Math.abs(Math.abs(txn.valor)-r.totalDep);
-              const last = lancamentosRows[lancamentosRows.length-1];
-              last.observacao = (last.observacao?last.observacao+"; ":"") + `Valor do relatório (R$ ${fmtBRL(r.totalDep)}) não bateu exato com a linha do extrato (R$ ${fmtBRL(Math.abs(txn.valor))}) — casado pelo mais próximo, confira.`;
-              last.flag = true;
-            }
-          });
-        } else {
-          const pdfTotal = repasses.reduce((s,r)=>s+r.itens.reduce((s2,i)=>s2+i.valor,0),0);
-          const txn = txns.find(t=>!t._used && loc && loc.keywords.some(k=>normalizeText(t.descricao).includes(normalizeText(k))) && Math.abs(Math.abs(t.valor)-pdfTotal)<0.01);
+        const semBaterExato = [];
+        repasses.forEach(r=>{
+          const txn = txns.find(t=>!t._used && loc && loc.keywords.some(k=>normalizeText(t.descricao).includes(normalizeText(k))) && Math.abs(Math.abs(t.valor)-r.totalDep)<0.01);
+          if(txn){ txn._used = true; finalizeRepasse(r, txn.data); }
+          else semBaterExato.push(r);
+        });
+        // Não bateu valor exato — comum quando o relatório da Rio Branco usado é de um mês
+        // anterior (ela ainda não mandou o do mês atual) e o total ficou um pouco diferente
+        // do que caiu no banco. Em vez de deixar sem data de recebimento, casa pelo valor
+        // mais próximo entre o que sobrou de linha do extrato dela e avisa na observação.
+        semBaterExato.forEach(r=>{
+          const candidatos = txns.filter(t=>!t._used && loc && loc.keywords.some(k=>normalizeText(t.descricao).includes(normalizeText(k))));
+          candidatos.sort((a,b)=>Math.abs(Math.abs(a.valor)-r.totalDep) - Math.abs(Math.abs(b.valor)-r.totalDep));
+          const txn = candidatos[0];
           if(txn) txn._used = true;
-          repasses.forEach(r=>finalizeRepasse(r, txn?txn.data:null));
-        }
+          finalizeRepasse(r, txn?txn.data:null);
+          if(txn){
+            const diff = Math.abs(Math.abs(txn.valor)-r.totalDep);
+            const last = lancamentosRows[lancamentosRows.length-1];
+            last.observacao = (last.observacao?last.observacao+"; ":"") + `Valor do relatório (R$ ${fmtBRL(r.totalDep)}) não bateu exato com a linha do extrato (R$ ${fmtBRL(Math.abs(txn.valor))}) — casado pelo mais próximo, confira.`;
+            last.flag = true;
+          }
+        });
       }
     }
     aplicacaoRendimentos = []; aplicacaoResgates = []; aplicacaoNaoIdentificadas = [];
@@ -1478,7 +1504,7 @@ function resolverRevisaoInquilino(i, contaStr){
   const inq = inquilinosDB.find(x=>String(x.conta)===String(contaStr));
   if(!inq) return;
   row.conta = inq.conta; row.cliente = inq.cliente; row.imovel = inq.imovel;
-  if(!row.avulso && !row.aluguelContrato && inq.aluguelContrato) row.aluguelContrato = inq.aluguelContrato;
+  if(!row.avulso && !row.semEmissao && !row.aluguelContrato && inq.aluguelContrato) row.aluguelContrato = inq.aluguelContrato;
   row.flag = !row.dataRecebimento;
   if(row.flag){
     row.observacao = (row.observacao ? row.observacao+"; " : "") + "Data de recebimento não encontrada no extrato — confira/preencha manualmente.";
@@ -1775,7 +1801,11 @@ function buildLancMantovaniLotes(){
     add(778, null, sum('fundoReserva'), `VALOR REF. DESCONTO DE FUNDO DE RESERVA DA ${nomeLoc} NO REPASSE ${comp}`);
     add(null, 791, sum('iptuRessarcido791'), `VALOR REF. ESTORNO DE IPTU DA ${nomeLoc} NO REPASSE ${comp}`);
     add(747, null, sum('iptuPago747'), `VALOR REF. IPTU PAGO NO REPASSE DA ${nomeLoc} ${comp}`);
-    add(341, null, sum('condChamExtra'), `VALOR REF. DESCONTO DE CONDOMINIO/CHAMADA EXTRA DA ${nomeLoc} NO REPASSE ${comp}`);
+    // Sensível ao sinal — condomínio/chamada extra pode ser desconto (débito 341) ou
+    // ressarcimento do inquilino (crédito 341), dependendo da imobiliária/mês.
+    const condNet = sum('condChamExtra');
+    if(condNet<-0.004) add(341, null, -condNet, `VALOR REF. DESCONTO DE CONDOMINIO/CHAMADA EXTRA DA ${nomeLoc} NO REPASSE ${comp}`);
+    else if(condNet>0.004) add(null, 341, condNet, `VALOR REF. RESSARCIMENTO DE CONDOMINIO/CHAMADA EXTRA DA ${nomeLoc} NO REPASSE ${comp}`);
     const jurosNet = sum('jurosRec');
     if(jurosNet>0.004) add(null, 394, jurosNet, `VALOR REF. JUROS/MULTA RECEBIDOS DA ${nomeLoc} NO REPASSE ${comp}`);
     else if(jurosNet<-0.004) add(394, null, -jurosNet, `VALOR REF. JUROS/MULTA DESCONTADOS DA ${nomeLoc} NO REPASSE ${comp}`);
