@@ -1025,16 +1025,28 @@ function parseToneto(lines){
   const repasses = [];
   let cur = null, done = false;
   const CONTRATO_RE = /^Contrato\s+(\S+)\s*-\s*(.+)$/;
-  const ITEM_RE = /^(Aluguel|IPTU|Fundo de Reserva.*|Taxa de administra[cç][aã]o|Chamada Extra.*|Taxas? transf.*)\s*-?\s*(.*?)\s+(-?[\d.,]+)$/i;
+  const ITEM_RE = /^(Aluguel|IPTU|Fundo de Reserva.*|Condom[íi]nio.*|Taxa de administra[cç][aã]o|Chamada Extra.*|Taxas? transf.*)\s*-?\s*(.*?)\s+(-?[\d.,]+)$/i;
+  const TOTAL_RE = /^Total para repasse\s+(-?[\d.,]+)$/i;
   lines.forEach(line=>{
     if(done) return;
     if(/^Total do extrato/i.test(line)){ done = true; return; }
     const cm = line.match(CONTRATO_RE);
     if(cm){ cur = {ref:"toneto-"+cm[1], contrato:cm[1], nome:"", imovelDesc:cm[2], itens:[]}; repasses.push(cur); return; }
     if(!cur) return;
-    if(/^Total para repasse/i.test(line)) return;
+    const tm = line.match(TOTAL_RE);
+    if(tm){ cur.totalImpresso = parseBRL(tm[1]); return; }
     const itm = line.match(ITEM_RE);
     if(itm){ cur.itens.push({desc:itm[1].trim(), valor:parseBRL(itm[3])}); }
+  });
+  // Confere contra o "Total para repasse" impresso — se a soma dos itens reconhecidos não
+  // bater, sobra algum tipo de item (rótulo novo/abreviado) que essa versão do parser ainda
+  // não cobre. Em vez de deixar sumir silenciosamente, lança a diferença como item "não
+  // classificado" (cai na revisão manual da tela de Lançamentos).
+  repasses.forEach(r=>{
+    if(r.totalImpresso==null) return;
+    const soma = r.itens.reduce((s,i)=>s+i.valor,0);
+    const diff = Math.round((r.totalImpresso - soma)*100)/100;
+    if(Math.abs(diff)>=0.01) r.itens.push({desc:"Diferença não classificada (conferir PDF)", valor:diff});
   });
   return repasses.filter(r=>r.itens.length>0);
 }
