@@ -1478,6 +1478,9 @@ async function processarLancamentos(){
       });
     }
 
+    // Nº Doc. NFS vem do Contas a Receber (mesma parcela que a baixa vai usar); o que já foi
+    // digitado à mão não é sobrescrito.
+    if(parcelasCR.length) buildBaixasRows().forEach(b=>{ if(b.numeroNota && !b.row.numeroDocumento) b.row.numeroDocumento = String(b.numeroNota); });
     status.classList.add("hidden");
     renderRevisaoInquilino();
     renderLancTable();
@@ -1768,7 +1771,7 @@ function buildBaixasRows(){
       dataVencimento: parcela ? parcela.vencimento : null,
       dataBaixa: row.dataRecebimento,
       valorRecebido: parcela ? parcela.valorParcela : (row.valorBruto||0),
-      divergente, cliente: row.cliente,
+      divergente, cliente: row.cliente, row,
     };
   });
 }
