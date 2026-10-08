@@ -1145,7 +1145,8 @@ function parseRioBranco(lines){
     for(let i=1;i<tokens.length;i++){
       if(/^\d+\.\d{2}$/.test(tokens[i])){ emNumeros = true; numTokens.push(parseFloat(tokens[i])); }
       else if(!emNumeros){ descTokens.push(tokens[i]); }
-      else { valido = false; break; } // texto depois que os números já começaram — não é essa linha
+      else if(/^[A-Za-zÀ-ÿ]+$/.test(tokens[i])) continue; // palavra solta no meio dos números (ex. "JULHO" = mês do aluguel, caso do Paulo) — ignora
+      else { valido = false; break; } // outro texto depois que os números já começaram — não é essa linha
     }
     if(!valido || numTokens.length < 3) return;
     const totalDep = numTokens[numTokens.length-1];
